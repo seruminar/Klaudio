@@ -1,0 +1,18 @@
+html,
+body,
+#root,
+#root > div {
+  height: 100%;
+}
+
+.snack.bar {
+  position: fixed;
+  bottom: 0;
+  z-index: 1000;
+  font-size: 3em;
+
+  .segment {
+    margin: 0;
+    padding: 0 0 1em 1em;
+  }
+}

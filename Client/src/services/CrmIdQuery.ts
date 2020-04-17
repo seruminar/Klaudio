@@ -1,0 +1,91 @@
+import { Wretcher } from 'wretch';
+
+import { CrmChildMap } from './CrmChildMap';
+import { CrmChildQuery } from './CrmChildQuery';
+import { CrmEndpoint } from './CrmEndpoint';
+import { CrmQueryBase } from './CrmQueryBase';
+import { ICrmIdQueryBuilder } from './ICrmIdQueryBuilder';
+import { ICrmApiResponse } from './models/ICrmApiResponse';
+import { ICrmEntity } from './models/ICrmEntity';
+
+export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<ICrmApiResponse & T> implements ICrmIdQueryBuilder<T> {
+  private id: Guid;
+
+  private selectFields: (keyof T)[];
+
+  private expandQuery: { [P in keyof T]?: string[] };
+
+  constructor(type: CrmEndpoint, id: Guid) {
+    super(type);
+
+    this.id = id;
+    this.selectFields = new Array<keyof T>();
+    this.expandQuery = {};
+  }
+
+  select(...fields: (keyof T)[]) {
+    this.selectFields = [...this.selectFields, ...fields];
+
+    return this;
+  }
+
+  expand<K extends keyof T>(property: K, select: (keyof NonNullable<T[K] extends any[] ? T[K][number] : T[K]>)[]) {
+    this.expandQuery[property] = select;
+
+    return this;
+  }
+
+  children<K extends keyof CrmChildMap>(childName: K) {
+    return new CrmChildQuery<CrmChildMap[K]>(this.type, this.id, childName);
+  }
+
+  protected TEMP_getUrl(url: string): string {
+    url += `(${this.id})`;
+
+    const parameters = [];
+
+    if (this.selectFields.length > 0) {
+      parameters.push(`$select=${this.selectFields.join(",")}`);
+    }
+
+    if (Object.keys(this.expandQuery).length > 0) {
+      const expansions = [];
+
+      for (const query in this.expandQuery) {
+        const expanded = this.expandQuery[query];
+
+        expanded && expansions.push(`${query}($select=${expanded.join(",")})`);
+      }
+
+      parameters.push(`$expand=${expansions.join(",")}`);
+    }
+
+    if (parameters.length > 0) {
+      url += `?${parameters.join("&")}`;
+    }
+
+    return url;
+  }
+
+  protected getRequest(request: Wretcher): Wretcher {
+    request = request.url(`(${this.id})`);
+
+    if (this.selectFields.length > 0) {
+      request = request.query(`$select=${this.selectFields.join(",")}`);
+    }
+
+    if (Object.keys(this.expandQuery).length > 0) {
+      const expansions = [];
+
+      for (const query in this.expandQuery) {
+        const expanded = this.expandQuery[query];
+
+        expanded && expansions.push(`${query}($select=${expanded.join(",")})`);
+      }
+
+      request = request.query(`$expand=${expansions.join(",")}`);
+    }
+
+    return request;
+  }
+}

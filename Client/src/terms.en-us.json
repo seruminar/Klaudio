@@ -1,0 +1,122 @@
+{
+  "header": {
+    "header": "Klaudio",
+    "description": "",
+    "darkMode": "Dark mode",
+    "lightMode": "Light mode",
+    "routes": {
+      "tickets": "Cases"
+    }
+  },
+  "tickets": {
+    "queue": "Queue",
+    "owner": "Owner",
+    "status": "Status",
+    "priority": "Priority",
+    "due": "Due",
+    "modified": "Modified",
+    "orderBy": "Order by",
+    "orderByReverse": "Reverse",
+    "ticketNumber": "Ticket #"
+  },
+  "ticket": {
+    "premium": "Premium",
+    "unknown": "Unknown",
+    "isSla": "Premium support"
+  },
+  "email": {
+    "showDetails": "Show details",
+    "from": "from:",
+    "to": "to:",
+    "cc": "cc:",
+    "bcc": "bcc:",
+    "subject": "subject:",
+    "created": "created:",
+    "sent": "sent:",
+    "accountManager": "AM:",
+    "accountExecutive": "AE:",
+    "territorySalesManager": "TSM:",
+    "noAccountUser": "(none)",
+    "reply": "Reply",
+    "send": "Send",
+    "sendKeepStatus": "Send and keep status",
+    "assignToMe": "Assign to me",
+    "setStatus": "Set status...",
+    "setPriority": "Set priority...",
+    "more": "More",
+    "assignTo": "Assign to...",
+    "handOver": "Hand over...",
+    "submitFeedback": "Submit feedback...",
+    "submitBug": "Submit a bug",
+    "openInCrm": "Open in CRM",
+    "addAttachment": "Add attachment",
+    "signatureDivider": "<br />------------------- Original Message -------------------<br /><br />"
+  },
+  "account": {
+    "csProjects": "Customer Success projects",
+    "accountServices": "Account services",
+    "recentTickets": "Recent cases",
+    "ticketEmails": "Case history",
+    "ticketNotes": "Notes on case",
+    "caseTags": "Case tags",
+    "credits": {
+      "label": "Credits:",
+      "remaining": "Remaining",
+      "total": "Total",
+      "expired": "Expired",
+      "logCreditTask": "Log credits task"
+    }
+  },
+  "errors": {
+    "genericError": "A generic error has occurred.",
+    "genericStack": "No error information.",
+    "notFound": "This path does not exist."
+  },
+  "entityNames": {
+    "systemUser": "(Unassigned)",
+    "ticketGroup": {
+      "619000000": "Support",
+      "619000002": "Consulting",
+      "619000005": "Sales Engineering",
+      "619000004": "Training"
+    },
+    "ticketPriority": {
+      "1": "High priority",
+      "2": "Normal",
+      "3": "Low priority",
+      "281600000": "Waiting for developers",
+      "281600001": "Processed",
+      "281600002": "Fire fighting"
+    },
+    "ticketStatus": {
+      "619000000": "Closed",
+      "619000001": "Solved",
+      "1": "Queue",
+      "3": "Waiting"
+    },
+    "supportLevel": {
+      "281600000": "Normal",
+      "281600001": "VIP",
+      "281600002": "Do not provide support",
+      "281600003": "Important",
+      "281600004": "Newcomer",
+      "281600005": "Kentico Kontent",
+      "281600006": "Prospect"
+    },
+    "accountService": {
+      "1": "Purchased",
+      "2": "Expired",
+      "281600000": "Completed",
+      "281600001": "In progress",
+      "281600003": "Cancelled"
+    }
+  },
+  "files": {
+    "sizes": {
+      "b": "B",
+      "kb": "KB",
+      "mb": "MB",
+      "gb": "GB"
+    }
+  }
+}
