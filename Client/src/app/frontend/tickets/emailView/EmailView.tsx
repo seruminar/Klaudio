@@ -32,6 +32,7 @@ import { getSizeText } from '../../../../utilities/numbers';
 import { wait } from '../../../../utilities/promises';
 import { RoutedFC } from '../../../../utilities/routing';
 import { routes } from '../../../routes';
+import { ExpandableChips } from '../../../shared/ExpandableChips';
 import { Loading } from '../../../shared/Loading';
 import { Menu } from '../../../shared/Menu';
 import { TicketIcon } from '../TicketIcon';
@@ -51,6 +52,7 @@ export const EmailContext = createContext<IEmailContext>({
 
 interface IEmailViewProps {
   ticketNumber: string;
+  emailId: string;
 }
 
 export type EmailViewMode = "edit" | "view" | "viewDraft" | "loading";
@@ -87,7 +89,7 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber }) => {
+export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
   const styles = useStyles();
 
   const [ticket, setTicket] = useState<ICrmTicket>();
@@ -129,31 +131,39 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber }) => {
 
       setTicket(ticket);
 
+      let emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
+
       const caseAttachments = (
         await crmService
           .tickets()
           .id(ticket.incidentid)
           .children("Incident_Emails")
-          .filter(`sender ne '${systemUser.internalemailaddress}'`)
           .select("activityid")
+          .filter(emailFilter)
           .orderBy("createdon desc")
           .expand("email_activity_mime_attachment", ["filename", "mimetype", "_objectid_value"])
       ).value.flatMap(email => email.email_activity_mime_attachment);
 
       setCaseAttachments(caseAttachments);
 
+      if (emailId) {
+        emailFilter += ` and activityid eq ${emailId}`;
+      }
+
       const latestEmail = (
         await crmService
           .tickets()
           .id(ticket.incidentid)
           .children("Incident_Emails")
-          .top(1)
           .select("statuscode", "senton", "createdon", "modifiedon", "subject", "description", "sender", "torecipients")
-          .filter(`sender ne '${systemUser.internalemailaddress}'`)
+          .filter(emailFilter)
+          .top(1)
           .orderBy("createdon desc")
       ).value[0];
 
-      await navigate(`${routes.base}${routes.tickets}/${ticketNumber}/${latestEmail.activityid}`);
+      if (!emailId) {
+        await navigate(`${routes.base}${routes.tickets}/${ticketNumber}/${latestEmail.activityid}`);
+      }
 
       setEmail(latestEmail);
 
@@ -219,7 +229,7 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber }) => {
 
       setMode("view");
     })();
-  }, [crmService, ticketNumber]);
+  }, [crmService, ticketNumber, emailId]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -385,34 +395,39 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber }) => {
               </Grid>
             )}
             <Grid>
-              {mode === "edit" && (
-                <Chip
-                  className={styles.attachment}
-                  clickable
-                  size="small"
-                  label={emailTerms.addAttachment}
-                  color="primary"
-                  icon={<AttachFile />}
-                />
-              )}
-              {caseAttachments.sort(getOrderedAttachments(email.activityid)).map(attachment => {
-                const [size, unit] = getSizeText(attachment.filesize);
+              <ExpandableChips
+                first={
+                  mode === "edit" && (
+                    <Chip
+                      className={styles.attachment}
+                      clickable
+                      size="small"
+                      label={emailTerms.addAttachment}
+                      color="primary"
+                      icon={<AttachFile />}
+                    />
+                  )
+                }
+                items={caseAttachments.sort(getOrderedAttachments(email.activityid))}
+                renderItem={attachment => {
+                  const [size, unit] = getSizeText(attachment.filesize);
 
-                const belongsToThisEmail = attachment._objectid_value && attachment._objectid_value === email.activityid;
+                  const belongsToThisEmail = attachment._objectid_value && attachment._objectid_value === email.activityid;
 
-                return (
-                  <Chip
-                    key={attachment.activitymimeattachmentid}
-                    className={styles.attachment}
-                    clickable
-                    onDelete={mode === "edit" && belongsToThisEmail ? () => removeAttachment(attachment) : undefined}
-                    size="small"
-                    variant={belongsToThisEmail ? "default" : "outlined"}
-                    icon={getAttachmentIcon(attachment.mimetype ?? "")}
-                    label={`${attachment.filename} ${size} ${unit}`}
-                  />
-                );
-              })}
+                  return (
+                    <Chip
+                      key={attachment.activitymimeattachmentid}
+                      className={styles.attachment}
+                      clickable
+                      onDelete={mode === "edit" && belongsToThisEmail ? () => removeAttachment(attachment) : undefined}
+                      size="small"
+                      variant={belongsToThisEmail ? "default" : "outlined"}
+                      icon={getAttachmentIcon(attachment.mimetype ?? "")}
+                      label={`${attachment.filename} ${size} ${unit}`}
+                    />
+                  );
+                }}
+              />
             </Grid>
             <Grid className={styles.emailContent}>
               {mode === "loading" && <Loading overlay />}

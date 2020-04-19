@@ -8,7 +8,7 @@ import {
     Theme,
     Typography
 } from '@material-ui/core';
-import { Alarm, Edit } from '@material-ui/icons';
+import { Alarm, Cake, Edit } from '@material-ui/icons';
 import { navigate, useMatch } from '@reach/router';
 
 import { ICrmTicket } from '../../../services/models/ICrmTicket';
@@ -67,6 +67,16 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
     listItemRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
   }, []);
 
+  const onClick = useCallback(
+    (ticket: ICrmTicket) => () => {
+      scrollIntoView();
+      if (!ticketIsSelected(ticket)) {
+        navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
+      }
+    },
+    [ticketIsSelected, scrollIntoView]
+  );
+
   useEffect(() => {
     if (ticketIsSelected(ticket)) {
       scrollIntoView();
@@ -75,15 +85,12 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
 
   return (
     <ListItem
-      alignItems="flex-start"
-      button={!ticketIsSelected(ticket) as any}
       dense
-      selected={ticketIsSelected(ticket)}
+      alignItems="flex-start"
       ref={listItemRef}
-      onClick={() => {
-        scrollIntoView();
-        navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
-      }}
+      button={!ticketIsSelected(ticket) as any}
+      selected={ticketIsSelected(ticket)}
+      onClick={onClick(ticket)}
     >
       <ListItemAvatar>
         <TicketIcon ticket={ticket} />
@@ -101,8 +108,9 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
         {ticket.customerid_account && <Typography variant="caption">{ticket.customerid_account.name}</Typography>}
         <div>
           <Typography component="span" className={styles.metadata}>
-            <DateFromNow icon={<Edit />} date={ticket.modifiedon} />
-            <DateFromNow icon={<Alarm />} date={ticket.ken_sladuedate} />
+            {ticket.modifiedon && <DateFromNow icon={<Edit />} date={ticket.modifiedon} />}
+            {ticket.ken_sladuedate && <DateFromNow icon={<Alarm />} date={ticket.ken_sladuedate} />}
+            {ticket.createdon && <DateFromNow icon={<Cake />} date={ticket.createdon} />}{" "}
           </Typography>
           <br />
           <Suspense fallback={<Loading />}>{ticketIsSelected(ticket) && <TicketDetails ticket={ticket} />}</Suspense>

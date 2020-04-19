@@ -9,7 +9,7 @@ import { ISnack, IUpdateMessage } from './snacks';
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
-      width: '100%'
+      width: "100%"
     }
   })
 );
@@ -38,13 +38,13 @@ export const Snack: FC<ISnack> = ({ type, content, update }) => {
   let message;
 
   switch (type) {
-    case 'success':
-    case 'info':
-    case 'warning':
-    case 'error':
+    case "success":
+    case "info":
+    case "warning":
+    case "error":
       message = <Alert severity={type}>{content}</Alert>;
       break;
-    case 'update':
+    case "update":
       const { current, total } = progress;
       const [sent, unit] = getSizeText(current, 2);
 
@@ -55,7 +55,7 @@ export const Snack: FC<ISnack> = ({ type, content, update }) => {
 
         const remainingMilliseconds = (total - current) * (duration / current);
 
-        const remainingTimeSegments = [','];
+        const remainingTimeSegments = [","];
 
         const remainingHoursMilliseconds = remainingMilliseconds % (60 * 60 * 1000);
 
@@ -72,18 +72,18 @@ export const Snack: FC<ISnack> = ({ type, content, update }) => {
         const remainingSeconds = (remainingMinutesMilliseconds - remainingSecondsMilliseconds) / 1000;
         remainingTimeSegments.push(`${remainingSeconds} seconds`);
 
-        updateContent += ` at ${getSizeText(rate, 2)[0]} ${unit}/s${remainingTimeSegments.join(' ')} to go`;
+        updateContent += ` at ${getSizeText(rate, 2)[0]} ${unit}/s${remainingTimeSegments.join(" ")} to go`;
       }
 
       const percent = toRounded((current / total) * 100);
 
       message = (
-        <Alert severity='info'>
+        <Alert severity="info">
           {content}
           {update && (
             <>
               {updateContent}
-              <LinearProgress variant='determinate' value={percent} />
+              <LinearProgress variant="determinate" value={percent} />
             </>
           )}
         </Alert>

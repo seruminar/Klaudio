@@ -98,7 +98,7 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
               {mode !== "edit" && (
                 <>
                   <EmailDetailLine label={emailTerms.created} value={moment(email.createdon).format("LLL")} />
-                  <EmailDetailLine label={emailTerms.sent} value={moment(email.senton).format("LLL")} />
+                  {email.senton && <EmailDetailLine label={emailTerms.sent} value={moment(email.senton).format("LLL")} />}
                 </>
               )}
               {ticket.customerid_account && aeUser && (

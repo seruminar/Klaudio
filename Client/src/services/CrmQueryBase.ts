@@ -1,8 +1,9 @@
 import wretch, { Wretcher } from 'wretch';
 
+import { context } from '../appSettings.json';
 import { wait } from '../utilities/promises';
 import { CrmEndpoint } from './CrmEndpoint';
-import TEMP_responses from './responses.json';
+import TEMP_responses from './TEMP_responses.json';
 
 export abstract class CrmQueryBase<TResponse> implements PromiseLike<TResponse> {
   protected type: CrmEndpoint;
@@ -35,7 +36,7 @@ export abstract class CrmQueryBase<TResponse> implements PromiseLike<TResponse> 
   private async getResponse() {
     const endpoint = `${this.type}`;
 
-    let fullUrl = `/api/data/v9.1/${endpoint}`;
+    let fullUrl = `${context.crmEndpoint}/${endpoint}`;
 
     // TEMPORARY
     if (process.env.NODE_ENV === "development") {

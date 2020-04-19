@@ -39,43 +39,18 @@ import { ISnack, showSnack } from './header/snacks';
 const Tickets = lazy(() => import("./tickets/Tickets").then(module => ({ default: module.Tickets })));
 const Error = lazy(() => import("../shared/Error").then(module => ({ default: module.Error })));
 
-const sidebarWidth = 150;
-
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
       display: "flex",
       height: "100%"
     },
-    appBar: {
-      zIndex: theme.zIndex.drawer + 1,
-      transition: theme.transitions.create(["width", "margin"], {
-        easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.leavingScreen
-      })
-    },
-    appBarShift: {
-      marginLeft: sidebarWidth,
-      width: `calc(100% - ${sidebarWidth}px)`,
-      transition: theme.transitions.create(["width", "margin"], {
-        easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.enteringScreen
-      })
-    },
-    menuButton: {
-      marginRight: 24,
-      marginLeft: -20
-    },
-    hide: {
-      display: "none"
-    },
     drawer: {
-      width: sidebarWidth,
       flexShrink: 0,
       whiteSpace: "nowrap"
     },
     drawerOpen: {
-      width: sidebarWidth,
+      width: theme.spacing(19),
       transition: theme.transitions.create("width", {
         easing: theme.transitions.easing.sharp,
         duration: theme.transitions.duration.enteringScreen
@@ -90,6 +65,12 @@ const useStyles = makeStyles((theme: Theme) =>
       [theme.breakpoints.up("sm")]: {
         width: theme.spacing(6.5)
       }
+    },
+    snackBar: {
+      position: "fixed",
+      bottom: 0,
+      zIndex: 1000,
+      fontSize: "3rem"
     },
     fill: {
       flex: 1
@@ -179,7 +160,7 @@ export const Frontend: RoutedFC = () => {
   return (
     <MessageContext.Provider value={headerContext.current}>
       <div className={styles.root}>
-        <div className="snack bar">
+        <div className={styles.snackBar}>
           {snacks.map(snack => (
             <Snack {...snack} />
           ))}
@@ -219,7 +200,7 @@ export const Frontend: RoutedFC = () => {
           <Suspense fallback={<Loading />}>
             <Router className={styles.router}>
               <Redirect from="/" to={`${routes.base}${routes.tickets}`} noThrow />
-              <Tickets path={`${routes.tickets}/*`} />
+              <Tickets path={`${routes.tickets}/*ticketPath`} />
               <Error path={routes.error} default message={errors.notFound} />
             </Router>
           </Suspense>

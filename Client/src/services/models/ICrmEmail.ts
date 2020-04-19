@@ -18,7 +18,7 @@ export interface ICrmEmail extends ICrmEntity {
   _ownerid_value?: Guid;
   createdon?: Date;
   modifiedon?: Date;
-  senton?: Date;
+  senton?: Date | null;
   subject?: string;
   statuscode?: EmailStatus;
   directioncode?: boolean;

@@ -26,6 +26,7 @@ import {
 import { Autocomplete } from '@material-ui/lab';
 import { Link, useMatch } from '@reach/router';
 
+import { experience } from '../../../appSettings.json';
 import { ICrmService } from '../../../services/CrmService';
 import { useDependency } from '../../../services/dependencyContainer';
 import {
@@ -53,21 +54,6 @@ interface ITicketDetailsProps {
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    csProjectsList: {
-      overflowY: "scroll",
-      width: "100%",
-      maxHeight: theme.spacing(20)
-    },
-    ticketEmailsList: {
-      overflowY: "scroll",
-      width: "100%",
-      maxHeight: theme.spacing(30)
-    },
-    ticketNotesList: {
-      overflowY: "scroll",
-      width: "100%",
-      maxHeight: theme.spacing(30)
-    },
     divider: {
       margin: theme.spacing(1, 0)
     },
@@ -97,9 +83,6 @@ const useStyles = makeStyles((theme: Theme) =>
       flex: 1,
       placeSelf: "center",
       margin: theme.spacing(0.25)
-    },
-    ticketNoteOwner: {
-      float: "right"
     },
     noteText: {
       whiteSpace: "pre-line",
@@ -157,7 +140,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
           .orderBy("ken_expireson desc");
 
         const date = new Date();
-        date.setHours(date.getHours() - 7 * 24);
+        date.setHours(date.getHours() - experience.recentCasesDays * 24);
 
         const recentTickets = crmService
           .tickets()
@@ -209,7 +192,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
           "trackingtoken",
           "_ownerid_value"
         )
-        .filter(`sender ne '${systemUser.internalemailaddress}'`)
+        .filter(`sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`)
         .orderBy("createdon desc");
 
       const ticketNotes = crmService
@@ -418,7 +401,6 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
               }
               items={recentTickets}
               selected={recentTicketIsSelected}
-              expanded
               getAvatar={recentTicket => <TicketIcon ticket={recentTicket} />}
               getLeft={recentTicket =>
                 recentTicket.title && (
@@ -455,7 +437,6 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
               }
               items={ticketEmails}
               selected={ticketEmailIsSelected}
-              expanded
               getAvatar={ticketEmail => (ticketEmail.directioncode && ticketEmail.directioncode ? <CallMade /> : <CallReceived />)}
               getLeft={ticketEmail =>
                 ticketEmail.subject && (

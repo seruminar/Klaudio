@@ -90,7 +90,13 @@ export const ExpandableList: <T>(props: IExpandableListProps<T>) => ReactElement
   const { avatar } = classes ?? { avatar: undefined };
 
   return (
-    <ExpansionPanel className={styles.default} square expanded={expand} onChange={(_, expand) => setExpand(expand)}>
+    <ExpansionPanel
+      className={styles.default}
+      square
+      expanded={expand}
+      onChange={(_, expand) => setExpand(expand)}
+      onClick={event => event.stopPropagation()}
+    >
       <ExpansionPanelSummary classes={{ root: styles.summary, content: styles.label }} expandIcon={<ExpandMore />}>
         <Box className={styles.labelHolder}>{label}</Box>
       </ExpansionPanelSummary>

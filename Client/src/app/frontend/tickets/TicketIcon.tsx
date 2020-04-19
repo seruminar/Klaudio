@@ -57,7 +57,7 @@ const useStyles = makeStyles((theme: Theme) =>
       background: blue["A400"]
     },
     unknown: {
-      background: `repeating-linear-gradient(135deg, ${grey[400]} 0 ${theme.spacing(0.25)}px, ${grey[200]} ${theme.spacing(
+      background: `repeating-linear-gradient(135deg, ${red[600]} 0 ${theme.spacing(0.25)}px, ${grey[400]} ${theme.spacing(
         0.25
       )}px ${theme.spacing(0.75)}px)`
     }

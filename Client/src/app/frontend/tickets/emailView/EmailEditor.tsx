@@ -73,7 +73,10 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     editorModeEdit: {
       border: `1px solid ${theme.palette.action.selected}`,
-      transition: "border .15s cubic-bezier(0.4,0.0,0.2,1), box-shadow .15s cubic-bezier(0.4,0.0,0.2,1)",
+      transition: theme.transitions.create(["border", "box-shadow"], {
+        easing: theme.transitions.easing.sharp,
+        duration: theme.transitions.duration.shorter
+      }),
       "&:hover": {
         boxShadow: `0 1px ${theme.spacing(1)}px ${theme.spacing(1)}px ${theme.palette.action.hover}, 0 2px 6px 2px ${
           theme.palette.action.hover
