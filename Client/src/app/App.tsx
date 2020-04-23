@@ -1,6 +1,6 @@
 import './app.scss';
 
-import React, { createContext, lazy, Suspense, useMemo, useState } from 'react';
+import React, { createContext, lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { boundary, useError } from 'react-boundary';
 import { Helmet } from 'react-helmet';
 
@@ -13,7 +13,7 @@ import {
     Theme,
     ThemeProvider
 } from '@material-ui/core';
-import { Router } from '@reach/router';
+import { navigate, Router } from '@reach/router';
 
 import { errors, header } from '../terms.en-us.json';
 import { routes } from './routes';
@@ -76,6 +76,18 @@ export const App = boundary(() => {
   );
 
   const themeContext = { theme, toggleTheme: () => (theme === "light" ? setTheme("dark") : setTheme("light")) };
+
+  useEffect(() => {
+    (async () => {
+      const [simpleCrmTicketNumber, simpleCrmEmailId] = window.location.hash.substr(1).split("|");
+
+      if (simpleCrmTicketNumber && simpleCrmEmailId) {
+        await navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}/${simpleCrmEmailId}`);
+      } else if (simpleCrmTicketNumber) {
+        await navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}`);
+      }
+    })();
+  }, []);
 
   return (
     <ThemeContext.Provider value={themeContext}>

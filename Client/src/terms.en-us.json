@@ -1,7 +1,7 @@
 {
   "header": {
     "header": "Klaudio",
-    "description": "",
+    "description": "Klaudio is a tool to make it easy to use Dynamics CRM for Kentico Customer Success",
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
     "routes": {
@@ -17,7 +17,9 @@
     "modified": "Modified",
     "orderBy": "Order by",
     "orderByReverse": "Reverse",
-    "ticketNumber": "Ticket #"
+    "ticketNumber": "Ticket #",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "ticket": {
     "premium": "Premium",
@@ -45,6 +47,8 @@
     "setPriority": "Set priority...",
     "more": "More",
     "less": "Less",
+    "showCcBcc": "Show CC and BCC",
+    "hideCcBcc": "Hide CC and BCC",
     "assignTo": "Assign to...",
     "handOver": "Hand over...",
     "submitFeedback": "Submit feedback...",

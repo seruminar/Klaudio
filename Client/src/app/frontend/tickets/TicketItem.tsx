@@ -1,13 +1,6 @@
 import React, { FC, lazy, Suspense, useCallback, useEffect, useRef } from 'react';
 
-import {
-    createStyles,
-    ListItem,
-    ListItemAvatar,
-    makeStyles,
-    Theme,
-    Typography
-} from '@material-ui/core';
+import { createStyles, Grid, ListItem, makeStyles, Theme, Typography } from '@material-ui/core';
 import { Alarm, Cake, Edit } from '@material-ui/icons';
 import { navigate, useMatch } from '@reach/router';
 
@@ -34,17 +27,24 @@ const useStyles = makeStyles((theme: Theme) =>
         margin: theme.spacing(0.5)
       }
     },
+    icon: {
+      margin: theme.spacing(0, 1, 1, 0)
+    },
     owner: {
-      float: "right"
+      float: "right",
+      marginLeft: theme.spacing(1)
     },
     menu: {
       float: "right",
-      padding: 0
+      padding: 0,
+      marginLeft: theme.spacing(1)
     },
     content: {
       margin: theme.spacing(0.75, 0),
       minWidth: 0,
-      flex: "1 1"
+      "& > div": {
+        width: "100%"
+      }
     }
   })
 );
@@ -68,10 +68,10 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
   }, []);
 
   const onClick = useCallback(
-    (ticket: ICrmTicket) => () => {
+    (ticket: ICrmTicket) => async () => {
       scrollIntoView();
       if (!ticketIsSelected(ticket)) {
-        navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
+        await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
       }
     },
     [ticketIsSelected, scrollIntoView]
@@ -92,30 +92,35 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
       selected={ticketIsSelected(ticket)}
       onClick={onClick(ticket)}
     >
-      <ListItemAvatar>
-        <TicketIcon ticket={ticket} />
-      </ListItemAvatar>
-      <div className={styles.content}>
-        {owner && (
-          <>
-            <Menu className={styles.menu} tooltip={emailTerms.more} options={[emailTerms.assignToMe, emailTerms.openInCrm]} />
-            <Typography variant="caption" className={styles.owner}>
-              {owner.fullname}
-            </Typography>
-          </>
-        )}
-        <Typography variant="subtitle2">{ticket.title}</Typography>
-        {ticket.customerid_account && <Typography variant="caption">{ticket.customerid_account.name}</Typography>}
-        <div>
+      <Grid container direction="column" className={styles.content}>
+        <Grid item container>
+          <Grid item>
+            <TicketIcon className={styles.icon} ticket={ticket} />
+          </Grid>
+          <Grid item sm>
+            {owner && (
+              <>
+                <Menu className={styles.menu} tooltip={emailTerms.more} options={[emailTerms.assignToMe, emailTerms.openInCrm]} />
+                <Typography variant="caption" className={styles.owner}>
+                  {owner.fullname}
+                </Typography>
+              </>
+            )}
+            <Typography variant="subtitle2">{ticket.title}</Typography>
+            {ticket.customerid_account && <Typography variant="caption">{ticket.customerid_account.name}</Typography>}
+          </Grid>
+        </Grid>
+        <Grid item>
           <Typography component="span" className={styles.metadata}>
             {ticket.modifiedon && <DateFromNow icon={<Edit />} date={ticket.modifiedon} />}
             {ticket.ken_sladuedate && <DateFromNow icon={<Alarm />} date={ticket.ken_sladuedate} />}
             {ticket.createdon && <DateFromNow icon={<Cake />} date={ticket.createdon} />}{" "}
           </Typography>
-          <br />
+        </Grid>
+        <Grid item>
           <Suspense fallback={<Loading />}>{ticketIsSelected(ticket) && <TicketDetails ticket={ticket} />}</Suspense>
-        </div>
-      </div>
+        </Grid>
+      </Grid>
     </ListItem>
   );
 };

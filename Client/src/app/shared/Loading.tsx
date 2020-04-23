@@ -2,6 +2,11 @@ import React, { FC } from 'react';
 
 import { CircularProgress, createStyles, makeStyles, Theme } from '@material-ui/core';
 
+interface ILoadingProps {
+  overlay?: boolean;
+  small?: boolean;
+}
+
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     space: {
@@ -35,18 +40,13 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-interface ILoadingProps {
-  overlay?: boolean;
-  small?: boolean;
-}
-
 export const Loading: FC<ILoadingProps> = ({ overlay, small }) => {
   const styles = useStyles();
 
   return (
     <div className={overlay ? styles.overlay : styles.space}>
       <div className={small ? styles.smallColumn : styles.column}>
-        <CircularProgress size={small ? "1rem" : undefined} />
+        <CircularProgress size={small ? "1rem" : undefined} disableShrink />
       </div>
     </div>
   );

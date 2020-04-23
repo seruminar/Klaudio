@@ -5,6 +5,7 @@ import React, {
     Suspense,
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState
 } from 'react';
@@ -13,8 +14,6 @@ import { debounceTime } from 'rxjs/operators';
 
 import {
     Box,
-    Card,
-    CardContent,
     createStyles,
     FormControl,
     FormControlLabel,
@@ -52,10 +51,6 @@ import { TicketItem } from './TicketItem';
 
 const EmailView = lazy(() => import("./emailView/EmailView").then(module => ({ default: module.EmailView })));
 
-interface ITicketsProps {
-  ticketPath: string;
-}
-
 type OrderBy = "modified" | "due" | "owner" | "priority";
 
 enum TicketsTabs {
@@ -63,22 +58,22 @@ enum TicketsTabs {
   Search
 }
 
+interface ITicketsProps {
+  ticketPath: string;
+}
+
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    pane: {
-      display: "flex",
+    search: {
       height: "100%",
-      minWidth: 0,
-      flexDirection: "column",
+      maxWidth: theme.spacing(32),
       borderRight: `${theme.spacing(0.1)}px solid ${theme.palette.divider}`
     },
-    paneFill: {
+    emailView: {
       display: "flex",
       height: "100%",
-      minWidth: 0,
       flex: 1
     },
-
     hidden: {
       display: "none"
     },
@@ -98,10 +93,11 @@ const useStyles = makeStyles((theme: Theme) =>
       width: "100%",
       padding: theme.spacing(1, 2)
     },
-
     itemCount: { flex: 1, textAlign: "right", fontSize: ".75rem" },
     orderByRow: {
-      flexWrap: "initial"
+      "& > label": {
+        margin: "initial"
+      }
     },
     orderByIcon: {
       display: "block"
@@ -125,7 +121,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
   const [users, setUsers] = useState<ICrmUser[]>();
   const [allTickets, setAllTickets] = useState<ICrmTicket[]>();
   const [tickets, setTickets] = useState<ICrmTicket[]>();
-  const [searchTicketNumber, setSearchTicketNumber] = useState<string>();
+  const [searchTicketNumber, setSearchTicketNumber] = useState("");
   const [searchTicketNumberFilter, setSearchTicketNumberFilter] = useState<string>();
   const [searching, setSearching] = useState(false);
 
@@ -243,67 +239,68 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const getOrderedTickets = useCallback(
-    (a: ICrmTicket, b: ICrmTicket) => {
-      switch (ticketOrderBy) {
-        case "modified":
-          if (a.modifiedon && b.modifiedon) {
-            return orderByReverse ? (a.modifiedon > b.modifiedon ? 1 : -1) : a.modifiedon < b.modifiedon ? 1 : -1;
-          }
-          break;
-        case "due":
-          if (a.ken_sladuedate && b.ken_sladuedate) {
-            return orderByReverse ? (a.ken_sladuedate < b.ken_sladuedate ? 1 : -1) : a.ken_sladuedate > b.ken_sladuedate ? 1 : -1;
-          }
-          break;
-        case "owner":
-          if (a.owninguser?.fullname && b.owninguser?.fullname) {
-            if (b.owninguser.systemuserid === systemUser.systemuserid) {
-              return 1;
+  const orderedTickets = useMemo(
+    () =>
+      tickets?.sort((a: ICrmTicket, b: ICrmTicket) => {
+        switch (ticketOrderBy) {
+          case "modified":
+            if (a.modifiedon && b.modifiedon) {
+              return orderByReverse ? (a.modifiedon > b.modifiedon ? 1 : -1) : a.modifiedon < b.modifiedon ? 1 : -1;
             }
-
-            return orderByReverse
-              ? a.owninguser.fullname < b.owninguser.fullname
-                ? 1
-                : -1
-              : a.owninguser.fullname > b.owninguser.fullname
-              ? 1
-              : -1;
-          }
-          break;
-        case "priority":
-          if (a.prioritycode && b.prioritycode) {
-            const getPrioritySort = (ticketPriority: TicketPriority) => {
-              switch (ticketPriority) {
-                case TicketPriority.FireFighting:
-                  return 1;
-                case TicketPriority.HighPriority:
-                  return 2;
-                case TicketPriority.Normal:
-                  return 3;
-                case TicketPriority.WaitingForDevelopers:
-                  return 4;
-                case TicketPriority.LowPriority:
-                  return 5;
-                case TicketPriority.Processed:
-                  return 6;
+            break;
+          case "due":
+            if (a.ken_sladuedate && b.ken_sladuedate) {
+              return orderByReverse ? (a.ken_sladuedate < b.ken_sladuedate ? 1 : -1) : a.ken_sladuedate > b.ken_sladuedate ? 1 : -1;
+            }
+            break;
+          case "owner":
+            if (a.owninguser?.fullname && b.owninguser?.fullname) {
+              if (b.owninguser.systemuserid === systemUser.systemuserid) {
+                return 1;
               }
-            };
 
-            return orderByReverse
-              ? getPrioritySort(a.prioritycode) < getPrioritySort(b.prioritycode)
+              return orderByReverse
+                ? a.owninguser.fullname < b.owninguser.fullname
+                  ? 1
+                  : -1
+                : a.owninguser.fullname > b.owninguser.fullname
                 ? 1
-                : -1
-              : getPrioritySort(a.prioritycode) > getPrioritySort(b.prioritycode)
-              ? 1
-              : -1;
-          }
-          break;
-      }
+                : -1;
+            }
+            break;
+          case "priority":
+            if (a.prioritycode && b.prioritycode) {
+              const getPrioritySort = (ticketPriority: TicketPriority) => {
+                switch (ticketPriority) {
+                  case TicketPriority.FireFighting:
+                    return 1;
+                  case TicketPriority.HighPriority:
+                    return 2;
+                  case TicketPriority.Normal:
+                    return 3;
+                  case TicketPriority.WaitingForDevelopers:
+                    return 4;
+                  case TicketPriority.LowPriority:
+                    return 5;
+                  case TicketPriority.Processed:
+                    return 6;
+                }
+              };
 
-      return 0;
-    },
-    [ticketOrderBy, orderByReverse]
+              return orderByReverse
+                ? getPrioritySort(a.prioritycode) < getPrioritySort(b.prioritycode)
+                  ? 1
+                  : -1
+                : getPrioritySort(a.prioritycode) > getPrioritySort(b.prioritycode)
+                ? 1
+                : -1;
+            }
+            break;
+        }
+
+        return 0;
+      }),
+    [tickets, ticketOrderBy, orderByReverse]
   );
 
   const changeTab = useCallback((_event: ChangeEvent<{}>, newValue: TicketsTabs) => {
@@ -319,10 +316,10 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
 
   return (
     <Grid container wrap="nowrap">
-      <Grid item className={styles.pane} xs={2}>
+      <Grid item zeroMinWidth className={styles.search} container direction="column" xs={2}>
         <Tabs variant="fullWidth" value={tab} onChange={changeTab}>
           <Tab classes={{ fullWidth: styles.tab }} icon={<FilterList />} />
-          <Tab icon={<Search />} />
+          <Tab classes={{ fullWidth: styles.tab }} icon={<Search />} />
         </Tabs>
         <Grid
           container
@@ -522,47 +519,42 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
           direction="column"
           justify="flex-start"
         >
-          <Card>
-            <CardContent>
-              <TextField
-                label={ticketsTerms.ticketNumber}
-                fullWidth
-                value={searchTicketNumber}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  setSearchTicketNumber(event.target.value);
-                  searchTicketNumberStream.current.next(event.target.value);
-                }}
-                InputProps={
-                  searching
-                    ? {
-                        endAdornment: (
-                          <InputAdornment position="end" className={styles.searchLoading}>
-                            <Loading small />
-                          </InputAdornment>
-                        )
-                      }
-                    : undefined
-                }
-              />
-            </CardContent>
-          </Card>
-          <Card className={styles.fill}></Card>
+          <Box className={styles.filterField}>
+            <TextField
+              label={ticketsTerms.ticketNumber}
+              fullWidth
+              value={searchTicketNumber}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                setSearchTicketNumber(event.target.value);
+                searchTicketNumberStream.current.next(event.target.value);
+              }}
+              InputProps={
+                searching
+                  ? {
+                      endAdornment: (
+                        <InputAdornment position="end" className={styles.searchLoading}>
+                          <Loading small />
+                        </InputAdornment>
+                      )
+                    }
+                  : undefined
+              }
+            />
+          </Box>
+          <Box className={styles.fill}></Box>
         </Grid>
       </Grid>
-      <PaneList xs={3}>
+      <PaneList tooltip={[ticketsTerms.expand, ticketsTerms.collapse]}>
         {!tickets && <Loading />}
-        {tickets &&
-          tickets
-            .sort(getOrderedTickets)
-            .map(ticket => (
-              <TicketItem
-                key={ticket.ticketnumber}
-                ticket={ticket}
-                owner={ticket.owninguser?.ownerid === systemUser.ownerid ? systemUser : ticket.owninguser}
-              />
-            ))}
+        {orderedTickets?.map(ticket => (
+          <TicketItem
+            key={ticket.ticketnumber}
+            ticket={ticket}
+            owner={ticket.owninguser?.ownerid === systemUser.ownerid ? systemUser : ticket.owninguser}
+          />
+        ))}
       </PaneList>
-      <Grid item className={styles.paneFill} xs={"auto"}>
+      <Grid item zeroMinWidth className={styles.emailView} xs={"auto"}>
         <Suspense fallback={<Loading />}>{ticketNumber && <EmailView ticketNumber={ticketNumber} emailId={emailId} />}</Suspense>
       </Grid>
     </Grid>

@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import React, { FC, useMemo } from 'react';
 
 import { Avatar, createStyles, makeStyles, Theme, Tooltip } from '@material-ui/core';
@@ -20,6 +21,7 @@ import { entityNames, ticket as ticketTerms } from '../../../terms.en-us.json';
 
 interface ITicketIconProps {
   ticket: ICrmTicket;
+  className?: string;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -64,7 +66,7 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const TicketIcon: FC<ITicketIconProps> = ({ ticket }) => {
+export const TicketIcon: FC<ITicketIconProps> = ({ ticket, className }) => {
   const styles = useStyles();
 
   const ticketClass = useMemo(() => {
@@ -153,7 +155,7 @@ export const TicketIcon: FC<ITicketIconProps> = ({ ticket }) => {
       title={ticketPriority ? `${supportLevel} ${ticketPriority}` : supportLevel}
       aria-label={ticketPriority ? `${supportLevel} ${ticketPriority}` : supportLevel}
     >
-      <Avatar variant={ticket.dyn_is2level ? "rounded" : "circle"} className={ticketClass}>
+      <Avatar variant={ticket.dyn_is2level ? "rounded" : "circle"} className={clsx(ticketClass, className)}>
         {ticket.dyn_issla ? ticketTerms.premium[0] : ""}
         {ticketPriority && ticketPriority[0]}
       </Avatar>

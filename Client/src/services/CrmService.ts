@@ -1,5 +1,7 @@
+import { CrmEmailBodyQuery } from './CrmEmailBodyQuery';
 import { CrmIdQuery } from './CrmIdQuery';
 import { CrmQuery } from './CrmQuery';
+import { ICrmEmailBodyQueryBuilder } from './ICrmEmailBodyQueryBuilder';
 import { ICrmIdQueryBuilder } from './ICrmIdQueryBuilder';
 import { ICrmQueryBuilder } from './ICrmQueryBuilder';
 import { ICrmAccount } from './models/ICrmAccount';
@@ -31,6 +33,8 @@ export class CrmService {
   tags: () => ICrmQueryBuilder<ICrmTag> = () => new CrmQuery<ICrmTag>("dyn_tags");
 
   emails: () => ICrmQueryBuilder<ICrmEmail> = () => new CrmQuery<ICrmEmail>("emails");
+
+  emailBody: () => ICrmEmailBodyQueryBuilder = () => new CrmEmailBodyQuery();
 
   services: () => ICrmQueryBuilder<ICrmAccountService> = () => new CrmQuery<ICrmAccountService>("ken_services");
 

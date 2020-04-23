@@ -1,125 +1,103 @@
-import React, { ReactElement, ReactNode, useState } from 'react';
+import clsx from 'clsx';
+import React, { FC, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-    Avatar,
-    Box,
     createStyles,
-    ExpansionPanel,
-    ExpansionPanelDetails,
-    ExpansionPanelSummary,
-    List,
-    ListItem,
-    ListItemAvatar,
-    ListItemSecondaryAction,
-    ListItemText,
+    Grid,
+    IconButton,
     makeStyles,
-    Theme
+    Theme,
+    Tooltip,
+    useTheme
 } from '@material-ui/core';
-import { ExpandMore } from '@material-ui/icons';
+import { ExpandLess, ExpandMore } from '@material-ui/icons';
 
-interface IExpandableListProps<T> {
-  label: ReactNode;
-  items: T[];
-  selected?: (item: T) => boolean;
-  direction?: "vertical" | "horizontal";
-  expanded?: boolean;
-  getAvatar?: (item: T) => ReactNode;
-  getLeft: (item: T) => ReactNode;
-  getRight: (item: T) => ReactNode;
-  getAction?: (item: T) => ReactNode;
-  classes?: { avatar: string };
+interface IExpandableListProps {
+  tooltip?: [string, string];
+  showOverlay?: boolean;
+  className?: string;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    list: {
-      overflowY: "scroll",
-      overscrollBehavior: "contain",
+    root: {
+      overflow: "hidden",
+      position: "relative"
+    },
+    collapsed: {
+      maxHeight: theme.spacing(6)
+    },
+    overlay: {
+      position: "absolute",
       width: "100%",
-      maxHeight: theme.spacing(20)
+      height: theme.spacing(3),
+      bottom: 0,
+      cursor: "pointer",
+      background: `linear-gradient(0, ${theme.palette.background.default}, transparent)`,
+      zIndex: 100
     },
-    default: {
-      background: "none",
-      margin: `${theme.spacing(1)}px 0 !important`,
-      "&:before": {
-        background: "none"
-      },
-      "& .MuiExpansionPanelSummary-expandIcon": {
-        padding: "initial"
-      }
+    icon: {
+      zIndex: 200
     },
-    summary: { minHeight: `${theme.spacing(5)}px !important` },
-    labelHolder: {
-      display: "flex",
-      justifyContent: "space-between",
-      width: "100%",
-      padding: theme.spacing(0, 1, 0, 0)
-    },
-    label: { margin: "0 !important" },
-    container: { padding: theme.spacing(0.5) },
-    item: {
-      display: "flex"
-    },
-    vertical: {
-      display: "flex",
-      flexDirection: "column"
-    },
-    left: {
-      display: "flex",
-      justifyContent: "space-between"
-    }
+    items: {}
   })
 );
 
-export const ExpandableList: <T>(props: IExpandableListProps<T>) => ReactElement<IExpandableListProps<T>> = ({
-  label,
-  getAction,
-  items,
-  selected,
-  direction,
-  expanded,
-  getAvatar,
-  getLeft,
-  getRight,
-  classes
-}) => {
+export const ExpandableList: FC<IExpandableListProps> = ({ tooltip, showOverlay, className, children }) => {
   const styles = useStyles();
 
-  const [expand, setExpand] = useState(expanded ?? false);
+  const [expanded, setExpanded] = useState(false);
+  const [showExpand, setShowExpand] = useState(true);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  const { avatar } = classes ?? { avatar: undefined };
+  const itemsRef = useRef<HTMLDivElement>(null);
+
+  const getLabel = useMemo(() => tooltip && (!expanded ? tooltip[0] : tooltip[1]), [tooltip, expanded]);
+
+  const theme = useTheme();
+
+  useEffect(() => {
+    const resizeWindow = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener("resize", resizeWindow);
+
+    return () => window.removeEventListener("resize", resizeWindow);
+  }, []);
+
+  useEffect(() => {
+    if (itemsRef.current && itemsRef.current.scrollHeight <= theme.spacing(6)) {
+      setShowExpand(false);
+      setExpanded(true);
+    } else {
+      setShowExpand(true);
+      setExpanded(false);
+    }
+  }, [itemsRef, theme, windowWidth]);
 
   return (
-    <ExpansionPanel
-      className={styles.default}
-      square
-      expanded={expand}
-      onChange={(_, expand) => setExpand(expand)}
-      onClick={event => event.stopPropagation()}
-    >
-      <ExpansionPanelSummary classes={{ root: styles.summary, content: styles.label }} expandIcon={<ExpandMore />}>
-        <Box className={styles.labelHolder}>{label}</Box>
-      </ExpansionPanelSummary>
-      <ExpansionPanelDetails className={styles.container}>
-        <List className={styles.list}>
-          {items.map((item, index) => (
-            <ListItem key={index} alignItems="flex-start" dense selected={selected && selected(item)}>
-              {getAvatar && (
-                <ListItemAvatar className={avatar}>
-                  <Avatar>{getAvatar(item)}</Avatar>
-                </ListItemAvatar>
-              )}
-              <ListItemText
-                className={direction === "vertical" ? styles.vertical : styles.item}
-                primary={getLeft(item)}
-                secondary={getRight(item)}
-                classes={{ primary: styles.left }}
-              />
-              {getAction && <ListItemSecondaryAction>{getAction(item)}</ListItemSecondaryAction>}
-            </ListItem>
-          ))}
-        </List>
-      </ExpansionPanelDetails>
-    </ExpansionPanel>
+    <div className={clsx(styles.root, !expanded && styles.collapsed, className)}>
+      <div className={clsx(showOverlay && !expanded && styles.overlay)} onClick={_ => setExpanded(!expanded)} />
+      <Grid container>
+        <Grid item sm ref={itemsRef} className={styles.items}>
+          {children}
+        </Grid>
+        <Grid item className={styles.icon}>
+          {showExpand &&
+            (tooltip ? (
+              <Tooltip title={getLabel} aria-label={getLabel}>
+                <IconButton onClick={_ => setExpanded(!expanded)} aria-label={getLabel}>
+                  {expanded ? <ExpandLess /> : <ExpandMore />}
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <IconButton onClick={_ => setExpanded(!expanded)} aria-label={getLabel}>
+                {expanded ? <ExpandLess /> : <ExpandMore />}
+              </IconButton>
+            ))}
+        </Grid>
+      </Grid>
+    </div>
   );
 };

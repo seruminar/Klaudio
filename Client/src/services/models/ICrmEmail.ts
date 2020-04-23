@@ -26,7 +26,6 @@ export interface ICrmEmail extends ICrmEntity {
   torecipients?: string;
   attachmentcount?: number;
   trackingtoken?: string;
-  description?: string;
   email_activity_mime_attachment: ICrmAttachment[];
   regardingobjectid_incident: ICrmTicket;
 }

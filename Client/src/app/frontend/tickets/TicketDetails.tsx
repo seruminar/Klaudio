@@ -1,5 +1,5 @@
 import Linkify from 'linkifyjs/react';
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
     Avatar,
@@ -16,8 +16,8 @@ import {
 import { blue, green, red } from '@material-ui/core/colors';
 import {
     AddCircle,
-    Alarm,
     Attachment,
+    Cake,
     CallMade,
     CallReceived,
     HourglassEmpty,
@@ -44,7 +44,7 @@ import { systemUser } from '../../../services/systemUser';
 import { account, entityNames } from '../../../terms.en-us.json';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
-import { ExpandableList } from '../../shared/ExpandableList';
+import { ExpandablePanel } from '../../shared/ExpandablePanel';
 import { Loading } from '../../shared/Loading';
 import { TicketIcon } from './TicketIcon';
 
@@ -245,65 +245,72 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
     [context]
   );
 
-  const getNotCreditsAccountServices = useCallback((accountServices: ICrmAccountService[]) => {
-    return accountServices.filter(accountService => accountService.ken_servicetype !== ServiceType.Credits);
-  }, []);
+  const notCreditsAccountServices = useMemo(
+    () => accountServices?.filter(accountService => accountService.ken_servicetype !== ServiceType.Credits),
+    [accountServices]
+  );
 
-  const getRemainingCredits = useCallback((accountServices: ICrmAccountService[]) => {
-    let credits = 0;
+  const remainingCredits = useMemo(() => {
+    if (accountServices) {
+      let credits = 0;
 
-    for (const accountService of accountServices) {
-      switch (accountService.ken_servicetype) {
-        case ServiceType.Credits:
-          switch (accountService.statuscode) {
-            case ServiceStatus.Purchased:
-            case ServiceStatus.InProgress:
-              credits += accountService.ken_remainingcredits;
-              break;
-          }
-          break;
+      for (const accountService of accountServices) {
+        switch (accountService.ken_servicetype) {
+          case ServiceType.Credits:
+            switch (accountService.statuscode) {
+              case ServiceStatus.Purchased:
+              case ServiceStatus.InProgress:
+                credits += accountService.ken_remainingcredits;
+                break;
+            }
+            break;
+        }
       }
+
+      return credits;
     }
+  }, [accountServices]);
 
-    return credits;
-  }, []);
+  const totalCredits = useMemo(() => {
+    if (accountServices) {
+      let credits = 0;
 
-  const getTotalCredits = useCallback((accountServices: ICrmAccountService[]) => {
-    let credits = 0;
-
-    for (const accountService of accountServices) {
-      switch (accountService.ken_servicetype) {
-        case ServiceType.Credits:
-          switch (accountService.statuscode) {
-            case ServiceStatus.Purchased:
-            case ServiceStatus.InProgress:
-              credits += accountService.ken_credits;
-              break;
-          }
-          break;
+      for (const accountService of accountServices) {
+        switch (accountService.ken_servicetype) {
+          case ServiceType.Credits:
+            switch (accountService.statuscode) {
+              case ServiceStatus.Purchased:
+              case ServiceStatus.InProgress:
+                credits += accountService.ken_credits;
+                break;
+            }
+            break;
+        }
       }
+
+      return credits;
     }
+  }, [accountServices]);
 
-    return credits;
-  }, []);
+  const expiredCredits = useMemo(() => {
+    if (accountServices) {
+      let credits = 0;
 
-  const getExpiredCredits = useCallback((accountServices: ICrmAccountService[]) => {
-    let credits = 0;
-
-    for (const accountService of accountServices) {
-      switch (accountService.ken_servicetype) {
-        case ServiceType.Credits:
-          switch (accountService.statuscode) {
-            case ServiceStatus.Expired:
-              credits += accountService.ken_remainingcredits;
-              break;
-          }
-          break;
+      for (const accountService of accountServices) {
+        switch (accountService.ken_servicetype) {
+          case ServiceType.Credits:
+            switch (accountService.statuscode) {
+              case ServiceStatus.Expired:
+                credits += accountService.ken_remainingcredits;
+                break;
+            }
+            break;
+        }
       }
-    }
 
-    return credits;
-  }, []);
+      return credits;
+    }
+  }, [accountServices]);
 
   return (
     <>
@@ -316,15 +323,15 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
           <Typography variant="subtitle1" align="center">
             {account.credits.label}
             <Tooltip title={account.credits.remaining} aria-label={account.credits.remaining}>
-              <Chip label={getRemainingCredits(accountServices)} className={styles.remainingCredits} />
+              <Chip label={remainingCredits} className={styles.remainingCredits} />
             </Tooltip>
             /
             <Tooltip title={account.credits.total} aria-label={account.credits.total}>
-              <Chip label={getTotalCredits(accountServices)} className={styles.totalCredits} />
+              <Chip label={totalCredits} className={styles.totalCredits} />
             </Tooltip>
             /
             <Tooltip title={account.credits.expired} aria-label={account.credits.expired}>
-              <Chip label={getExpiredCredits(accountServices)} className={styles.expiredCredits} />
+              <Chip label={expiredCredits} className={styles.expiredCredits} />
             </Tooltip>
             <Tooltip title={account.credits.logCreditTask} aria-label={account.credits.logCreditTask}>
               <IconButton aria-label={account.credits.logCreditTask}>
@@ -333,7 +340,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
             </Tooltip>
           </Typography>
           {csProjects.length > 0 && (
-            <ExpandableList
+            <ExpandablePanel
               label={
                 <>
                   <Typography variant="subtitle2">{account.csProjects}</Typography>
@@ -346,7 +353,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
               getLeft={csProject => (
                 <>
                   <Typography variant="subtitle2">{csProject.ken_name}</Typography>
-                  <DateFromNow icon={<HourglassEmpty />} date={csProject.createdon} />
+                  <DateFromNow icon={<Cake />} date={csProject.createdon} />
                 </>
               )}
               getRight={csProject => (
@@ -357,14 +364,14 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
             />
           )}
           {accountServices.length > 0 && (
-            <ExpandableList
+            <ExpandablePanel
               label={
                 <>
                   <Typography variant="subtitle2">{account.accountServices}</Typography>
-                  <Typography variant="subtitle2">{getNotCreditsAccountServices(accountServices).length}</Typography>
+                  <Typography variant="subtitle2">{notCreditsAccountServices?.length}</Typography>
                 </>
               }
-              items={getNotCreditsAccountServices(accountServices)}
+              items={notCreditsAccountServices}
               getAvatar={accountService => (
                 <Tooltip
                   title={entityNames.accountService[accountService.statuscode]}
@@ -379,7 +386,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
                 </Typography>
               )}
               getRight={accountService =>
-                accountService.ken_expireson && <DateFromNow icon={<Alarm />} date={accountService.ken_expireson} />
+                accountService.ken_expireson && <DateFromNow icon={<HourglassEmpty />} date={accountService.ken_expireson} />
               }
               getAction={accountService => (
                 <IconButton edge="end" aria-label="delete" className={styles.emailItemButton}>
@@ -392,7 +399,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
             />
           )}
           {recentTickets.length > 0 && (
-            <ExpandableList
+            <ExpandablePanel
               label={
                 <>
                   <Typography variant="subtitle2">{account.recentTickets}</Typography>
@@ -428,7 +435,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
       {ticketEmails && ticketNotes && ticketTags && (
         <>
           {ticketEmails.length > 0 && (
-            <ExpandableList
+            <ExpandablePanel
               label={
                 <>
                   <Typography variant="subtitle2">{account.ticketEmails}</Typography>
@@ -466,7 +473,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
             />
           )}
           {ticketNotes.length > 0 && (
-            <ExpandableList
+            <ExpandablePanel
               label={
                 <>
                   <Typography variant="subtitle2">{account.ticketNotes}</Typography>

@@ -13,7 +13,6 @@ Quill.register(Quill.import("attributors/style/font"), true);
 
 interface IEmailEditorProps {
   value: string;
-  setValue: (content: string) => void;
   addHtmlRef: MutableRefObject<((position: number, html: string) => void) | null>;
 }
 
@@ -91,7 +90,7 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const EmailEditor: FC<IEmailEditorProps> = ({ value, setValue, addHtmlRef }) => {
+export const EmailEditor: FC<IEmailEditorProps> = ({ value, addHtmlRef }) => {
   const styles = useStyles();
 
   const editorRef = useRef<ReactQuill | null>(null);
@@ -127,7 +126,6 @@ export const EmailEditor: FC<IEmailEditorProps> = ({ value, setValue, addHtmlRef
       theme="snow"
       className={clsx(styles.editor, mode === "edit" ? styles.editorModeEdit : styles.editorModeView)}
       value={value}
-      onChange={setValue}
       modules={mode === "edit" ? modules : { toolbar: false }}
     />
   );

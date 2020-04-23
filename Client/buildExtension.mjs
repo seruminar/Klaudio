@@ -1,5 +1,6 @@
 // @ts-check
-import { promises } from "fs";
+import { promises, createWriteStream } from "fs";
+import archiver from "archiver";
 
 const { writeFile, readdir } = promises;
 
@@ -24,8 +25,10 @@ const blankManifest = {
   ]
 };
 
+const build = "./build";
+
 (async () => {
-  const jsFiles = await readdir("./build/static/js");
+  const jsFiles = await readdir(`${build}/static/js`);
 
   for (const file of jsFiles) {
     if (file.endsWith(".js")) {
@@ -33,7 +36,7 @@ const blankManifest = {
     }
   }
 
-  const cssFiles = await readdir("./build/static/css");
+  const cssFiles = await readdir(`${build}/static/css`);
 
   for (const file of cssFiles) {
     if (file.endsWith(".css")) {
@@ -41,7 +44,7 @@ const blankManifest = {
     }
   }
 
-  const backgroundFiles = await readdir("./build/static/js/chrome");
+  const backgroundFiles = await readdir(`${build}/static/js/chrome`);
 
   for (const file of backgroundFiles) {
     if (file.endsWith(".js")) {
@@ -49,5 +52,21 @@ const blankManifest = {
     }
   }
 
-  await writeFile("./build/manifest.json", JSON.stringify(blankManifest));
+  await writeFile(`${build}/manifest.json`, JSON.stringify(blankManifest));
+
+  const output = createWriteStream(`${build}/build_${process.env.npm_package_version}.zip`);
+
+  const archive = archiver("zip", {
+    zlib: { level: 9 }
+  });
+
+  archive.pipe(output);
+
+  const packageFiles = ["favicon.ico", "logo192.png", "manifest.json"];
+
+  packageFiles.map(file => archive.file(`${build}/${file}`, { name: file }));
+
+  archive.directory(`${build}/static`, "static");
+
+  await archive.finalize();
 })();

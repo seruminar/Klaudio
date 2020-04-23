@@ -12,6 +12,7 @@ interface IEditableEmailsProps {
   label: string;
   className?: string;
 }
+
 export const EditableEmails: FC<IEditableEmailsProps> = ({ value, setValue, label, className }) => {
   return (
     <Autocomplete

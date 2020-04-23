@@ -3,7 +3,6 @@ import wretch, { Wretcher } from 'wretch';
 import { context } from '../appSettings.json';
 import { wait } from '../utilities/promises';
 import { CrmEndpoint } from './CrmEndpoint';
-import TEMP_responses from './TEMP_responses.json';
 
 export abstract class CrmQueryBase<TResponse> implements PromiseLike<TResponse> {
   protected type: CrmEndpoint;
@@ -45,6 +44,8 @@ export abstract class CrmQueryBase<TResponse> implements PromiseLike<TResponse> 
       console.log(fullUrl);
 
       await wait(Math.random() * 150 + 20);
+
+      const TEMP_responses = await import("./TEMP_responses.json");
 
       for (const response in TEMP_responses) {
         if ((TEMP_responses as any)[response].url === fullUrl) {

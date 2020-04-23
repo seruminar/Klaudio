@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
+import React, { createContext, FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
     Box,
@@ -7,7 +7,6 @@ import {
     Grid,
     IconButton,
     makeStyles,
-    SvgIcon,
     Theme,
     Tooltip,
     Typography
@@ -30,11 +29,11 @@ import { email as emailTerms, entityNames } from '../../../../terms.en-us.json';
 import { deleteFrom } from '../../../../utilities/arrays';
 import { getSizeText } from '../../../../utilities/numbers';
 import { wait } from '../../../../utilities/promises';
-import { RoutedFC } from '../../../../utilities/routing';
 import { routes } from '../../../routes';
-import { ExpandableChips } from '../../../shared/ExpandableChips';
+import { ExpandableList } from '../../../shared/ExpandableList';
 import { Loading } from '../../../shared/Loading';
 import { Menu } from '../../../shared/Menu';
+import { SendSave } from '../../../shared/SendSave';
 import { TicketIcon } from '../TicketIcon';
 import { getFileIcon } from '../ticketUtilities';
 import { EditableEmails } from './EditableEmails';
@@ -81,7 +80,7 @@ const useStyles = makeStyles((theme: Theme) =>
       flex: 1
     },
     recipients: {
-      padding: theme.spacing(0, 1)
+      margin: theme.spacing(0, 0, 1)
     },
     attachment: {
       margin: theme.spacing(0.5)
@@ -89,20 +88,22 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
+export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
   const styles = useStyles();
 
   const [ticket, setTicket] = useState<ICrmTicket>();
-  const [currentUser, setCurrentUser] = useState<ICrmCurrentUser>();
   const [email, setEmail] = useState<ICrmEmail>();
-  const [caseAttachments, setCaseAttachments] = useState<ICrmAttachment[]>();
-  const [mode, setMode] = useState<EmailViewMode>("loading");
-  const [toEmails, setToEmails] = useState<IEmailRecipient[]>([]);
-  const [ccEmails, setCcEmails] = useState<IEmailRecipient[]>([]);
-  const [bccEmails, setBccEmails] = useState<IEmailRecipient[]>([]);
   const [aeUser, setAeUser] = useState<ICrmUser>();
   const [amUser, setAmUser] = useState<ICrmUser>();
   const [tsmUser, setTsmUser] = useState<ICrmUser>();
+  const [toEmails, setToEmails] = useState<IEmailRecipient[]>([]);
+  const [ccEmails, setCcEmails] = useState<IEmailRecipient[]>([]);
+  const [bccEmails, setBccEmails] = useState<IEmailRecipient[]>([]);
+
+  const [emailContent, setEmailContent] = useState<string>();
+  const [caseAttachments, setCaseAttachments] = useState<ICrmAttachment[]>();
+  const [currentUser, setCurrentUser] = useState<ICrmCurrentUser>();
+  const [mode, setMode] = useState<EmailViewMode>("loading");
 
   const addHtmlRef = useRef<(position: number, html: string) => void>(null);
 
@@ -155,7 +156,7 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber, emailId }) 
           .tickets()
           .id(ticket.incidentid)
           .children("Incident_Emails")
-          .select("statuscode", "senton", "createdon", "modifiedon", "subject", "description", "sender", "torecipients")
+          .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "torecipients")
           .filter(emailFilter)
           .top(1)
           .orderBy("createdon desc")
@@ -166,6 +167,30 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber, emailId }) 
       }
 
       setEmail(latestEmail);
+
+      setEmailContent(await crmService.emailBody().id(latestEmail.activityid));
+
+      if (ticket.customerid_account) {
+        const accountUserIds = [
+          ticket.customerid_account._dyn_accountexecutiveid_value,
+          ticket.customerid_account._dyn_accountmanagerid_value,
+          ticket.customerid_account._owninguser_value
+        ];
+
+        const getAccountUser = (userId: string) =>
+          crmService
+            .users()
+            .id(userId)
+            .select("fullname", "domainname");
+
+        const [aeUser, amUser, tsmUser] = await Promise.all(
+          accountUserIds.filter(userId => !!userId).map(userId => getAccountUser(userId))
+        );
+
+        setAeUser(aeUser);
+        setAmUser(amUser);
+        setTsmUser(tsmUser);
+      }
 
       if (latestEmail.torecipients) {
         const toEmails = latestEmail.torecipients
@@ -196,28 +221,6 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber, emailId }) 
         .map(party => ({ name: party.partyid_contact?.fullname, email: party.addressused }));
 
       setBccEmails(bccEmails);
-
-      if (ticket.customerid_account) {
-        const accountUserIds = [
-          ticket.customerid_account._dyn_accountexecutiveid_value,
-          ticket.customerid_account._dyn_accountmanagerid_value,
-          ticket.customerid_account._owninguser_value
-        ];
-
-        const getAccountUser = (userId: string) =>
-          crmService
-            .users()
-            .id(userId)
-            .select("fullname", "domainname");
-
-        const [aeUser, amUser, tsmUser] = await Promise.all(
-          accountUserIds.filter(userId => !!userId).map(userId => getAccountUser(userId))
-        );
-
-        setAeUser(aeUser);
-        setAmUser(amUser);
-        setTsmUser(tsmUser);
-      }
 
       if (latestEmail.statuscode) {
         switch (latestEmail.statuscode) {
@@ -272,19 +275,20 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber, emailId }) 
     []
   );
 
-  const getOrderedAttachments = useCallback(
-    (emailActivityId: string) => (a: ICrmAttachment, b: ICrmAttachment) => {
-      if (b._objectid_value && b._objectid_value === emailActivityId) {
-        if (a._objectid_value && a._objectid_value === emailActivityId) {
-          return a.filesize < b.filesize ? 1 : -1;
+  const orderedAttachments = useMemo(
+    () =>
+      caseAttachments?.sort((a: ICrmAttachment, b: ICrmAttachment) => {
+        if (b._objectid_value && b._objectid_value === email?.activityid) {
+          if (a._objectid_value && a._objectid_value === email?.activityid) {
+            return a.filesize < b.filesize ? 1 : -1;
+          }
+
+          return 1;
         }
 
-        return 1;
-      }
-
-      return a.filesize < b.filesize ? 1 : -1;
-    },
-    []
+        return a.filesize < b.filesize ? 1 : -1;
+      }),
+    [caseAttachments, email]
   );
 
   const getAttachmentIcon = useCallback(getFileIcon, [getFileIcon]);
@@ -337,15 +341,7 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber, emailId }) 
               {mode === "edit" && (
                 <Tooltip title={emailTerms.sendKeepStatus} aria-label={emailTerms.send}>
                   <IconButton onClick={sendEmail(true)}>
-                    <SvgIcon>
-                      <svg className="MuiSvgIcon-root MuiSvgIcon-colorPrimary" focusable="false" viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M18.7,13.2l4.3-1.9l-21-9l0,7l15,2l-15,2l0,7c0,0,11.5-4.9,11.5-4.9v5.8c0,0.5,0.4,1,1,1h7c0.6,0,1-0.5,1-1v-6l-2-2
-	C20.5,13.2,18.7,13.2,18.7,13.2z M18,21.2c-0.8,0-1.5-0.7-1.5-1.5s0.7-1.5,1.5-1.5s1.5,0.7,1.5,1.5S18.8,21.2,18,21.2z M19.5,16.2
-	h-5v-2h5V16.2z"
-                        />
-                      </svg>
-                    </SvgIcon>
+                    <SendSave />
                   </IconButton>
                 </Tooltip>
               )}
@@ -382,34 +378,25 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber, emailId }) 
               />
             </Grid>
             {mode === "edit" && (
-              <Grid container>
-                <Grid item xs={4} className={styles.recipients}>
-                  <EditableEmails value={toEmails} setValue={setToEmails} label={emailTerms.to} />
-                </Grid>
-                <Grid item xs={4} className={styles.recipients}>
-                  <EditableEmails value={ccEmails} setValue={setCcEmails} label={emailTerms.cc} />
-                </Grid>
-                <Grid item xs={4} className={styles.recipients}>
-                  <EditableEmails value={bccEmails} setValue={setBccEmails} label={emailTerms.bcc} />
-                </Grid>
-              </Grid>
+              <ExpandableList className={styles.recipients} tooltip={[emailTerms.showCcBcc, emailTerms.hideCcBcc]}>
+                <EditableEmails value={toEmails} setValue={setToEmails} label={emailTerms.to} />
+                <EditableEmails value={ccEmails} setValue={setCcEmails} label={emailTerms.cc} />
+                <EditableEmails value={bccEmails} setValue={setBccEmails} label={emailTerms.bcc} />
+              </ExpandableList>
             )}
             <Grid>
-              <ExpandableChips
-                first={
-                  mode === "edit" && (
-                    <Chip
-                      className={styles.attachment}
-                      clickable
-                      size="small"
-                      label={emailTerms.addAttachment}
-                      color="primary"
-                      icon={<AttachFile />}
-                    />
-                  )
-                }
-                items={caseAttachments.sort(getOrderedAttachments(email.activityid))}
-                renderItem={attachment => {
+              <ExpandableList showOverlay tooltip={[emailTerms.more, emailTerms.less]}>
+                {mode === "edit" && (
+                  <Chip
+                    className={styles.attachment}
+                    clickable
+                    size="small"
+                    label={emailTerms.addAttachment}
+                    color="primary"
+                    icon={<AttachFile />}
+                  />
+                )}
+                {orderedAttachments?.map(attachment => {
                   const [size, unit] = getSizeText(attachment.filesize);
 
                   const belongsToThisEmail = attachment._objectid_value && attachment._objectid_value === email.activityid;
@@ -426,16 +413,12 @@ export const EmailView: RoutedFC<IEmailViewProps> = ({ ticketNumber, emailId }) 
                       label={`${attachment.filename} ${size} ${unit}`}
                     />
                   );
-                }}
-              />
+                })}
+              </ExpandableList>
             </Grid>
             <Grid className={styles.emailContent}>
               {mode === "loading" && <Loading overlay />}
-              <EmailEditor
-                value={email.description ?? ""}
-                setValue={value => setEmail(email => email && { ...email, description: value })}
-                addHtmlRef={addHtmlRef}
-              />
+              {emailContent && <EmailEditor value={emailContent} addHtmlRef={addHtmlRef} />}
             </Grid>
           </Grid>
         </EmailContext.Provider>
