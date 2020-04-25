@@ -98,7 +98,7 @@ export const App = boundary(() => {
           <meta charSet="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
-          <link rel="stylesheet" href="//cdn.quilljs.com/1.3.7/quill.snow.css" />
+          <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css" />
         </Helmet>
         <Suspense fallback={<Loading />}>
           {hasError && <Error stack={`${error && error.stack}${info && info.componentStack}`} />}

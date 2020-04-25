@@ -418,7 +418,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
             </Grid>
             <Grid className={styles.emailContent}>
               {mode === "loading" && <Loading overlay />}
-              {emailContent && <EmailEditor value={emailContent} addHtmlRef={addHtmlRef} />}
+              {emailContent && <EmailEditor2 value={emailContent} addHtmlRef={addHtmlRef} />}
             </Grid>
           </Grid>
         </EmailContext.Provider>
