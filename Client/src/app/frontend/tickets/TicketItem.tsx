@@ -68,10 +68,10 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
   }, []);
 
   const onClick = useCallback(
-    (ticket: ICrmTicket) => async () => {
+    (ticket: ICrmTicket) => () => {
       scrollIntoView();
       if (!ticketIsSelected(ticket)) {
-        await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
+        navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
       }
     },
     [ticketIsSelected, scrollIntoView]

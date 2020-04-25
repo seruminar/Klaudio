@@ -17,12 +17,6 @@ export class CrmChildQuery<T extends ICrmEntity> extends CrmQuery<T> implements 
     this.childName = childName;
   }
 
-  protected TEMP_getUrl(url: string): string {
-    url += `(${this.parentId})/${this.childName}`;
-
-    return super.TEMP_getUrl(url);
-  }
-
   protected getRequest(request: Wretcher): Wretcher {
     request = request.url(`(${this.parentId})/${this.childName}`);
 

@@ -1,12 +1,13 @@
-import wretch from 'wretch';
+import wretch, { Wretcher } from 'wretch';
 
-import { wait } from '../utilities/promises';
+import { CrmQueryBase } from './CrmQueryBase';
 import { ICrmEmailBodyQueryBuilder } from './ICrmEmailBodyQueryBuilder';
 
-export class CrmEmailBodyQuery implements ICrmEmailBodyQueryBuilder {
+export class CrmEmailBodyQuery extends CrmQueryBase<string> implements ICrmEmailBodyQueryBuilder {
   private emailId: Guid;
 
   constructor() {
+    super(undefined);
     this.emailId = "";
   }
 
@@ -15,45 +16,11 @@ export class CrmEmailBodyQuery implements ICrmEmailBodyQueryBuilder {
     return this;
   }
 
-  async then<TResult1 = string, TResult2 = never>(
-    resolve?: ((value: string) => TResult1 | PromiseLike<TResult1>) | null | undefined,
-    reject?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined
-  ): Promise<TResult1 | TResult2> {
-    try {
-      if (resolve) {
-        return resolve(await this.getResponse());
-      }
-    } catch (error) {
-      if (reject) {
-        return reject(error);
-      }
-    }
-
-    return new Promise<TResult1>(() => this.getResponse());
+  protected getRequest(request: Wretcher): Wretcher {
+    return wretch(`/_controls/emailbody/msgBody.aspx`).query({ id: `{${this.emailId}}`, entityType: "email" });
   }
 
-  private async getResponse() {
-    const endpoint = `/_controls/emailbody/msgBody.aspx?id={${this.emailId}}&entityType=email`;
-
-    // TEMPORARY
-    if (process.env.NODE_ENV === "development") {
-      console.log(endpoint);
-
-      await wait(Math.random() * 150 + 20);
-
-      const TEMP_responses = await import("./TEMP_responses.json");
-
-      for (const response in TEMP_responses) {
-        if ((TEMP_responses as any)[response].url === endpoint) {
-          return ((TEMP_responses as any)[response].value as unknown) as string;
-        }
-      }
-
-      return "";
-    }
-
-    let request = wretch(endpoint);
-
+  async sendRequest(request: Wretcher) {
     return await (await request.get().blob()).text();
   }
 }

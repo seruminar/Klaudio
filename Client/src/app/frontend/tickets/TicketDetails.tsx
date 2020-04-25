@@ -29,19 +29,15 @@ import { Link, useMatch } from '@reach/router';
 import { experience } from '../../../appSettings.json';
 import { ICrmService } from '../../../services/CrmService';
 import { useDependency } from '../../../services/dependencyContainer';
-import {
-    ICrmAccountService,
-    ServiceStatus,
-    ServiceType
-} from '../../../services/models/ICrmAccountService';
-import { ICrmCsProject, ProductFamily } from '../../../services/models/ICrmCsProject';
+import { ServiceStatus, ServiceType } from '../../../services/models/ICrmAccountService';
+import { ProductFamily } from '../../../services/models/ICrmCsProject';
 import { ICrmEmail } from '../../../services/models/ICrmEmail';
-import { ICrmNote } from '../../../services/models/ICrmNote';
 import { ICrmTag } from '../../../services/models/ICrmTag';
 import { ICrmTicket } from '../../../services/models/ICrmTicket';
 import { TicketStatus } from '../../../services/models/TicketStatus';
 import { systemUser } from '../../../services/systemUser';
 import { account, entityNames } from '../../../terms.en-us.json';
+import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
 import { ExpandablePanel } from '../../shared/ExpandablePanel';
@@ -112,125 +108,134 @@ const useStyles = makeStyles((theme: Theme) =>
 export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
   const styles = useStyles();
 
-  const [csProjects, setCsProjects] = useState<ICrmCsProject[]>();
-  const [accountServices, setAccountServices] = useState<ICrmAccountService[]>();
-  const [recentTickets, setRecentTickets] = useState<ICrmTicket[]>();
-  const [ticketEmails, setTicketEmails] = useState<ICrmEmail[]>();
-  const [ticketNotes, setTicketNotes] = useState<ICrmNote[]>();
-  const [ticketTags, setTicketTags] = useState<ICrmTag[]>();
-  const [allTags, setAllTags] = useState<ICrmTag[]>();
-
   const context = useMatch(`${routes.base}${routes.tickets}/:ticketNumber/:emailId`);
 
   const crmService = useDependency(ICrmService);
 
-  useEffect(() => {
-    (async () => {
-      if (ticket.customerid_account) {
-        const csProjects = crmService
-          .csProjects()
-          .select("ken_productfamily", "ken_name", "ken_csprojectdetails", "ken_customersuccessprojectid", "createdon")
-          .filter(`_ken_customerid_value eq ${ticket.customerid_account.accountid} and ken_csprojectstatus ne 281600009`)
-          .orderBy("createdon desc");
+  const [ticketTags, setTicketTags] = useState<ICrmTag[]>();
 
-        const accountServices = crmService
-          .services()
-          .select("ken_name", "ken_remainingcredits", "ken_credits", "statuscode", "ken_expireson", "ken_servicetype")
-          .filter(`_ken_accountid_value eq ${ticket.customerid_account.accountid} and ken_servicetype ne ${ServiceType.CustomerSuccess}`)
-          .orderBy("ken_expireson desc");
+  const csProjectsFilter = useMemo(() => {
+    if (ticket.customerid_account) {
+      return `_ken_customerid_value eq ${ticket.customerid_account.accountid} and ken_csprojectstatus ne 281600009`;
+    }
+  }, [ticket.customerid_account]);
 
-        const date = new Date();
-        date.setHours(date.getHours() - experience.recentCasesDays * 24);
+  const csProjects = useSubscriptionEffect(() => {
+    if (csProjectsFilter) {
+      return crmService
+        .csProjects()
+        .select("ken_productfamily", "ken_name", "ken_csprojectdetails", "ken_customersuccessprojectid", "createdon")
+        .filter(csProjectsFilter)
+        .orderBy("createdon desc")
+        .getObservable();
+    }
+  })?.value;
 
-        const recentTickets = crmService
-          .tickets()
-          .select(
-            "title",
-            "ken_sladuedate",
-            "modifiedon",
-            "ticketnumber",
-            "dyn_issla",
-            "dyn_is2level",
-            "prioritycode",
-            "dyn_ticket_group",
-            "statuscode"
-          )
-          .filter(
-            `_customerid_value eq ${ticket.customerid_account.accountid} and (createdon gt ${
-              process.env.NODE_ENV === "development" ? "2020-04-13T04%3A41%3A45.381Z" : date.toISOString()
-            } or statuscode eq ${TicketStatus.Queue})`
-          )
-          .orderBy("modifiedon desc");
+  const accountServicesFilter = useMemo(() => {
+    if (ticket.customerid_account) {
+      return `_ken_accountid_value eq ${ticket.customerid_account.accountid} and ken_servicetype ne ${ServiceType.CustomerSuccess}`;
+    }
+  }, [ticket.customerid_account]);
 
-        const [csProjectsResponse, accountServicesResponse, recentTicketsResponse] = await Promise.all([
-          csProjects,
-          accountServices,
-          recentTickets
-        ]);
+  const accountServices = useSubscriptionEffect(() => {
+    if (accountServicesFilter) {
+      return crmService
+        .services()
+        .select("ken_name", "ken_remainingcredits", "ken_credits", "statuscode", "ken_expireson", "ken_servicetype")
+        .filter(accountServicesFilter)
+        .orderBy("ken_expireson desc")
+        .getObservable();
+    }
+  })?.value;
 
-        setCsProjects(csProjectsResponse.value);
-        setAccountServices(accountServicesResponse.value);
-        setRecentTickets(recentTicketsResponse.value);
-      } else {
-        setCsProjects([]);
-        setAccountServices([]);
-        setRecentTickets([]);
-      }
+  const recentTicketsFilter = useMemo(() => {
+    if (ticket.customerid_account) {
+      const date = new Date();
+      date.setHours(date.getHours() - experience.recentCasesDays * 24);
 
-      const ticketEmails = crmService
+      return `_customerid_value eq ${ticket.customerid_account.accountid} and (createdon gt ${
+        process.env.NODE_ENV === "development" ? "2020-04-13T04%3A41%3A45.381Z" : date.toISOString()
+      } or statuscode eq ${TicketStatus.Queue})`;
+    }
+  }, [ticket.customerid_account]);
+
+  const recentTickets = useSubscriptionEffect(() => {
+    if (recentTicketsFilter) {
+      return crmService
         .tickets()
-        .id(ticket.incidentid)
-        .children("Incident_Emails")
         .select(
+          "title",
+          "ken_sladuedate",
           "modifiedon",
-          "subject",
-          "activityid",
-          "statuscode",
-          "directioncode",
-          "sender",
-          "attachmentcount",
-          "trackingtoken",
-          "_ownerid_value"
+          "ticketnumber",
+          "dyn_issla",
+          "dyn_is2level",
+          "prioritycode",
+          "dyn_ticket_group",
+          "statuscode"
         )
-        .filter(`sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`)
-        .orderBy("createdon desc");
+        .filter(recentTicketsFilter)
+        .orderBy("modifiedon desc")
+        .getObservable();
+    }
+  })?.value;
 
-      const ticketNotes = crmService
-        .tickets()
-        .id(ticket.incidentid)
-        .children("Incident_Annotation")
-        .select("subject", "notetext", "modifiedon")
-        .expand("modifiedby", ["fullname"])
-        .orderBy("modifiedon desc");
+  const ticketEmails = useSubscription(
+    crmService
+      .tickets()
+      .id(ticket.incidentid)
+      .children("Incident_Emails")
+      .select(
+        "modifiedon",
+        "subject",
+        "activityid",
+        "statuscode",
+        "directioncode",
+        "sender",
+        "attachmentcount",
+        "trackingtoken",
+        "_ownerid_value"
+      )
+      .filter(`sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`)
+      .orderBy("createdon desc")
+      .getObservable()
+  )?.value;
 
-      const ticketTags = crmService
-        .tickets()
-        .id(ticket.incidentid)
-        .children("incident_connections1")
-        .select("name")
-        .orderBy("name desc");
+  const ticketNotes = useSubscription(
+    crmService
+      .tickets()
+      .id(ticket.incidentid)
+      .children("Incident_Annotation")
+      .select("subject", "notetext", "modifiedon")
+      .expand("modifiedby", ["fullname"])
+      .orderBy("modifiedon desc")
+      .getObservable()
+  )?.value;
 
-      const [ticketEmailsResponse, ticketNotesResponse, ticketTagsResponse] = await Promise.all([ticketEmails, ticketNotes, ticketTags]);
-
-      setTicketEmails(ticketEmailsResponse.value);
-      setTicketNotes(ticketNotesResponse.value);
-      setTicketTags(ticketTagsResponse.value.map(connection => ({ dyn_tagid: connection.connectionid, dyn_name: connection.name })));
-    })();
-  }, [ticket, crmService]);
+  const newTicketTags = useSubscription(
+    crmService
+      .tickets()
+      .id(ticket.incidentid)
+      .children("incident_connections1")
+      .select("name")
+      .orderBy("name desc")
+      .getObservable()
+  )?.value;
 
   useEffect(() => {
-    (async () => {
-      const allTags = (
-        await crmService
-          .tags()
-          .select("dyn_name")
-          .filter(`statuscode eq 1 and ken_taggroup eq 281600002`)
-          .orderBy("dyn_name")
-      ).value;
+    if (newTicketTags) {
+      setTicketTags(newTicketTags.map(connection => ({ dyn_tagid: connection.connectionid, dyn_name: connection.name })));
+    }
+  }, [newTicketTags]);
 
-      setAllTags(allTags);
-    })();
-  }, [ticket, crmService]);
+  const allTags = useSubscription(
+    crmService
+      .tags()
+      .select("dyn_name")
+      .filter(`statuscode eq 1 and ken_taggroup eq 281600002`)
+      .orderBy("dyn_name")
+      .getObservable()
+  )?.value;
 
   const ticketEmailIsSelected = useCallback(
     (ticketEmail: ICrmEmail) => {
@@ -317,8 +322,8 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
       {ticket.customerid_account?.ken_customernote && (
         <Typography component="span">{ticket.customerid_account.ken_customernote}</Typography>
       )}
-      {!(accountServices && csProjects && recentTickets) && <Loading />}
-      {accountServices && csProjects && recentTickets && (
+      {ticket.customerid_account && !(accountServices && csProjects && recentTickets) && <Loading />}
+      {ticket.customerid_account && accountServices && csProjects && recentTickets && (
         <>
           <Typography variant="subtitle1" align="center">
             {account.credits.label}

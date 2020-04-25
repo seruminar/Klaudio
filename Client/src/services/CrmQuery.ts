@@ -62,43 +62,6 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<ICrmApiResponse
     return this;
   }
 
-  protected TEMP_getUrl(url: string): string {
-    const parameters = [];
-
-    if (this.topQuery > -1) {
-      parameters.push(`$top=${this.topQuery}`);
-    }
-
-    if (this.selectFields.length > 0) {
-      parameters.push(`$select=${this.selectFields.join(",")}`);
-    }
-
-    if (this.filterQuery !== "") {
-      parameters.push(`$filter=${encodeURIComponent(this.filterQuery)}`);
-    }
-
-    if (this.orderByQuery !== "") {
-      parameters.push(`$orderby=${encodeURIComponent(this.orderByQuery)}`);
-    }
-
-    if (Object.keys(this.expandQuery).length > 0) {
-      const expansions = [];
-
-      for (const query in this.expandQuery) {
-        const expanded = this.expandQuery[query];
-
-        expanded && expansions.push(`${query}($select=${expanded.join(",")})`);
-      }
-
-      parameters.push(`$expand=${expansions.join(",")}`);
-    }
-
-    if (parameters.length > 0) {
-      url += `?${parameters.join("&")}`;
-    }
-
-    return url;
-  }
   protected getRequest(request: Wretcher): Wretcher {
     if (this.topQuery > -1) {
       request = request.query(`$top=${this.topQuery}`);

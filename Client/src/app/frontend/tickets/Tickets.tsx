@@ -44,6 +44,7 @@ import { TicketPriority } from '../../../services/models/TicketPriority';
 import { TicketStatus } from '../../../services/models/TicketStatus';
 import { systemUser } from '../../../services/systemUser';
 import { entityNames, tickets as ticketsTerms } from '../../../terms.en-us.json';
+import { useSubscription } from '../../../utilities/observables';
 import { RoutedFC } from '../../../utilities/routing';
 import { Loading } from '../../shared/Loading';
 import { PaneList } from '../../shared/PaneList';
@@ -118,87 +119,83 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
   const [ticketOwner, setTicketOwner] = useState<ICrmUser | null>(null);
   const [ticketOrderBy, setTicketOrderBy] = useState<OrderBy>("modified");
   const [orderByReverse, setOrderByReverse] = useState(false);
-  const [users, setUsers] = useState<ICrmUser[]>();
-  const [allTickets, setAllTickets] = useState<ICrmTicket[]>();
-  const [tickets, setTickets] = useState<ICrmTicket[]>();
   const [searchTicketNumber, setSearchTicketNumber] = useState("");
   const [searchTicketNumberFilter, setSearchTicketNumberFilter] = useState<string>();
   const [searching, setSearching] = useState(false);
 
   const searchTicketNumberStream = useRef(new Subject<string>());
 
-  const crmService = useDependency(ICrmService);
-
   const [ticketNumber, emailId] = (ticketPath ?? "").split("/");
 
+  const crmService = useDependency(ICrmService);
+
+  const allTickets = useSubscription(
+    crmService
+      .tickets()
+      .select("_ownerid_value", "prioritycode", "ticketnumber", "dyn_ticket_group", "statuscode")
+      .filter(`statuscode eq ${TicketStatus.Queue}`)
+      .top(100)
+      .orderBy("modifiedon desc")
+      .getObservable()
+  )?.value;
+
+  const ticketsFilter = useMemo(() => {
+    let filter = `dyn_ticket_group eq ${ticketQueue}`;
+
+    if (ticketPriority) {
+      filter += ` and prioritycode eq ${ticketPriority}`;
+    }
+
+    filter += ` and statuscode eq ${ticketStatus}`;
+
+    if (ticketOwner) {
+      filter += ` and _ownerid_value eq ${ticketOwner.ownerid}`;
+    }
+
+    if (ticketNumber) {
+      filter = `(${filter}) or ticketnumber eq '${ticketNumber}'`;
+    }
+
+    if (searchTicketNumberFilter) {
+      filter = `Incident_Emails/any(e:contains(e/trackingtoken,'${searchTicketNumberFilter}'))`;
+    }
+
+    return filter;
+  }, [ticketQueue, ticketPriority, ticketStatus, ticketOwner, ticketNumber, searchTicketNumberFilter]);
+
+  const tickets = useSubscription(
+    crmService
+      .tickets()
+      .select(
+        "title",
+        "ken_sladuedate",
+        "modifiedon",
+        "createdon",
+        "ticketnumber",
+        "dyn_issla",
+        "dyn_is2level",
+        "prioritycode",
+        "dyn_ticket_group",
+        "statuscode"
+      )
+      .filter(ticketsFilter)
+      .top(100)
+      .orderBy("modifiedon desc")
+      .expand("customerid_account", ["name", "ken_customernote", "ken_supportlevel"])
+      .expand("owninguser", ["fullname"])
+      .getObservable()
+  )?.value;
+
   useEffect(() => {
-    (async () => {
-      const allTickets = (
-        await crmService
-          .tickets()
-          .select("_ownerid_value", "prioritycode", "ticketnumber", "dyn_ticket_group", "statuscode")
-          .filter(`statuscode eq ${TicketStatus.Queue}`)
-          .top(100)
-          .orderBy("modifiedon desc")
-      ).value;
-
-      setAllTickets(allTickets);
-    })();
-  }, [crmService]);
-
-  useEffect(() => {
-    (async () => {
-      let filter = `dyn_ticket_group eq ${ticketQueue}`;
-
-      if (ticketPriority) {
-        filter += ` and prioritycode eq ${ticketPriority}`;
-      }
-
-      filter += ` and statuscode eq ${ticketStatus}`;
-
-      if (ticketOwner) {
-        filter += ` and _ownerid_value eq ${ticketOwner.ownerid}`;
-      }
-
-      if (ticketNumber) {
-        filter = `(${filter}) or ticketnumber eq '${ticketNumber}'`;
-      }
-
-      if (searchTicketNumberFilter) {
-        filter = `Incident_Emails/any(e:contains(e/trackingtoken,'${searchTicketNumberFilter}'))`;
-      }
-
-      const tickets = (
-        await crmService
-          .tickets()
-          .select(
-            "title",
-            "ken_sladuedate",
-            "modifiedon",
-            "createdon",
-            "ticketnumber",
-            "dyn_issla",
-            "dyn_is2level",
-            "prioritycode",
-            "dyn_ticket_group",
-            "statuscode"
-          )
-          .filter(filter)
-          .top(100)
-          .orderBy("modifiedon desc")
-          .expand("customerid_account", ["name", "ken_customernote", "ken_supportlevel"])
-          .expand("owninguser", ["fullname"])
-      ).value;
-
-      setTickets(tickets);
+    if (tickets) {
       setSearching(false);
-    })();
-  }, [crmService, ticketQueue, ticketPriority, ticketStatus, ticketOwner, ticketNumber, searchTicketNumberFilter]);
+    }
+  }, [tickets]);
 
-  useEffect(() => {
+  const usersFilter = useMemo(() => {
+    let filter = "";
+
     if (ticketQueue) {
-      let filter = "";
-
       switch (parseInt(ticketQueue)) {
         case TicketGroup.Support:
           filter = `address1_telephone3 eq 'supportplugin' or address1_telephone3 eq 'supportconsultingplugin'`;
@@ -213,20 +210,19 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
           filter = `address1_telephone3 eq 'trainingplugin'`;
           break;
       }
-
-      (async () => {
-        const users = (
-          await crmService
-            .users()
-            .select("fullname", "systemuserid", "address1_telephone3")
-            .filter(filter)
-            .orderBy("fullname")
-        ).value;
-
-        setUsers([systemUser, ...users]);
-      })();
     }
-  }, [crmService, ticketQueue]);
+
+    return filter;
+  }, [ticketQueue]);
+
+  const users = useSubscription(
+    crmService
+      .users()
+      .select("fullname", "systemuserid", "address1_telephone3")
+      .filter(usersFilter)
+      .orderBy("fullname")
+      .getObservable()
+  )?.value;
 
   useEffect(() => {
     const subscription = searchTicketNumberStream.current.pipe(debounceTime(experience.searchTimeout)).subscribe({
@@ -385,7 +381,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
                   }}
                   value={ticketPriority}
                   onChange={(_event: any, newValue: string | null) => {
-                    setTicketPriority(newValue ? newValue : TicketPriority.Normal.toString());
+                    setTicketPriority(newValue);
                   }}
                   renderInput={params => {
                     const count = allTickets
@@ -410,14 +406,14 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
                   getOptionLabel={option => (entityNames.ticketStatus as any)[option]}
                   value={ticketStatus}
                   onChange={(_event: any, newValue: string | null) => {
-                    setTicketStatus(newValue ? newValue : TicketStatus[TicketStatus.Queue]);
+                    setTicketStatus(newValue ? newValue : TicketStatus.Queue.toString());
                   }}
                   renderInput={params => <TextField {...params} label={ticketsTerms.status} />}
                 />
               </Box>
               <Box className={styles.filterField}>
                 <Autocomplete
-                  options={users}
+                  options={[systemUser, ...users]}
                   getOptionLabel={option => option.fullname ?? option.systemuserid}
                   renderOption={option => {
                     const count = allTickets

@@ -2,7 +2,7 @@
 import { promises, createWriteStream } from "fs";
 import archiver from "archiver";
 
-const { writeFile, readdir } = promises;
+const { writeFile, readdir, readFile } = promises;
 
 const blankManifest = {
   manifest_version: 2,
@@ -30,8 +30,17 @@ const build = "./build";
 (async () => {
   const jsFiles = await readdir(`${build}/static/js`);
 
+  let TEMP_responses;
+
   for (const file of jsFiles) {
     if (file.endsWith(".js")) {
+      const fileContents = await readFile(`${build}/static/js/${file}`, "utf8");
+
+      if (fileContents.indexOf("WhoAmIResponse") > -1) {
+        TEMP_responses = file;
+        continue;
+      }
+
       blankManifest.content_scripts[0].js.push(`static/js/${file}`);
     }
   }
@@ -66,7 +75,7 @@ const build = "./build";
 
   packageFiles.map(file => archive.file(`${build}/${file}`, { name: file }));
 
-  archive.directory(`${build}/static`, "static");
+  archive.directory(`${build}/static`, "static", data => (data.name.indexOf(TEMP_responses) > -1 ? false : data));
 
   await archive.finalize();
 })();

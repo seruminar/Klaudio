@@ -17,10 +17,7 @@ import { navigate } from '@reach/router';
 import { ICrmService } from '../../../../services/CrmService';
 import { useDependency } from '../../../../services/dependencyContainer';
 import { ICrmAttachment } from '../../../../services/models/ICrmAttachment';
-import { ICrmCurrentUser } from '../../../../services/models/ICrmCurrentUser';
-import { EmailStatus, ICrmEmail } from '../../../../services/models/ICrmEmail';
-import { ICrmTicket } from '../../../../services/models/ICrmTicket';
-import { ICrmUser } from '../../../../services/models/ICrmUser';
+import { EmailStatus } from '../../../../services/models/ICrmEmail';
 import { ParticipationType } from '../../../../services/models/ParticipationType';
 import { TicketPriority } from '../../../../services/models/TicketPriority';
 import { TicketStatus } from '../../../../services/models/TicketStatus';
@@ -28,6 +25,7 @@ import { systemUser } from '../../../../services/systemUser';
 import { email as emailTerms, entityNames } from '../../../../terms.en-us.json';
 import { deleteFrom } from '../../../../utilities/arrays';
 import { getSizeText } from '../../../../utilities/numbers';
+import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
 import { wait } from '../../../../utilities/promises';
 import { routes } from '../../../routes';
 import { ExpandableList } from '../../../shared/ExpandableList';
@@ -51,7 +49,7 @@ export const EmailContext = createContext<IEmailContext>({
 
 interface IEmailViewProps {
   ticketNumber: string;
-  emailId: string;
+  emailId: string | undefined;
 }
 
 export type EmailViewMode = "edit" | "view" | "viewDraft" | "loading";
@@ -91,125 +89,165 @@ const useStyles = makeStyles((theme: Theme) =>
 export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
   const styles = useStyles();
 
-  const [ticket, setTicket] = useState<ICrmTicket>();
-  const [email, setEmail] = useState<ICrmEmail>();
-  const [aeUser, setAeUser] = useState<ICrmUser>();
-  const [amUser, setAmUser] = useState<ICrmUser>();
-  const [tsmUser, setTsmUser] = useState<ICrmUser>();
+  const [caseAttachments, setCaseAttachments] = useState<ICrmAttachment[]>();
   const [toEmails, setToEmails] = useState<IEmailRecipient[]>([]);
   const [ccEmails, setCcEmails] = useState<IEmailRecipient[]>([]);
   const [bccEmails, setBccEmails] = useState<IEmailRecipient[]>([]);
 
-  const [emailContent, setEmailContent] = useState<string>();
-  const [caseAttachments, setCaseAttachments] = useState<ICrmAttachment[]>();
-  const [currentUser, setCurrentUser] = useState<ICrmCurrentUser>();
   const [mode, setMode] = useState<EmailViewMode>("loading");
 
   const addHtmlRef = useRef<(position: number, html: string) => void>(null);
 
   const crmService = useDependency(ICrmService);
 
+  const ticket = useSubscription(
+    crmService
+      .tickets()
+      .select("title", "ken_sladuedate", "modifiedon", "_ownerid_value", "dyn_issla", "dyn_is2level", "prioritycode", "statuscode")
+      .filter(`ticketnumber eq '${ticketNumber}'`)
+      .top(1)
+      .expand("customerid_account", [
+        "name",
+        "ken_customernote",
+        "ken_supportlevel",
+        "_dyn_accountexecutiveid_value",
+        "_dyn_accountmanagerid_value",
+        "_owninguser_value"
+      ])
+      .expand("primarycontactid", ["contactid", "fullname", "ken_position", "ken_supportlevel", "ken_comment"])
+      .getObservable()
+  )?.value[0];
+
+  const ticketId = useMemo(() => {
+    return ticket?.incidentid;
+  }, [ticket]);
+
+  const emailFilter = useMemo(() => {
+    let filter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
+
+    if (emailId) {
+      filter += ` and activityid eq ${emailId}`;
+    }
+
+    return filter;
+  }, [emailId]);
+
+  const newCaseAttachments = useSubscriptionEffect(() => {
+    if (ticketId) {
+      return crmService
+        .tickets()
+        .id(ticketId)
+        .children("Incident_Emails")
+        .select("activityid")
+        .filter(emailFilter)
+        .orderBy("createdon desc")
+        .expand("email_activity_mime_attachment", ["filename", "mimetype", "_objectid_value"])
+        .getObservable();
+    }
+  })?.value;
+
   useEffect(() => {
-    setMode("loading");
+    if (newCaseAttachments) {
+      setCaseAttachments(newCaseAttachments.flatMap(email => email.email_activity_mime_attachment));
+    }
+  }, [newCaseAttachments]);
 
-    (async () => {
-      const ticket = (
-        await crmService
-          .tickets()
-          .select("title", "ken_sladuedate", "modifiedon", "_ownerid_value", "dyn_issla", "dyn_is2level", "prioritycode", "statuscode")
-          .filter(`ticketnumber eq '${ticketNumber}'`)
-          .top(1)
-          .expand("customerid_account", [
-            "name",
-            "ken_customernote",
-            "ken_supportlevel",
-            "_dyn_accountexecutiveid_value",
-            "_dyn_accountmanagerid_value",
-            "_owninguser_value"
-          ])
-          .expand("primarycontactid", ["contactid", "fullname", "ken_position", "ken_supportlevel", "ken_comment"])
-      ).value[0];
+  const email = useSubscriptionEffect(() => {
+    if (ticketId) {
+      return crmService
+        .tickets()
+        .id(ticketId)
+        .children("Incident_Emails")
+        .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "torecipients", "_regardingobjectid_value")
+        .filter(emailFilter)
+        .top(1)
+        .orderBy("createdon desc")
+        .getObservable();
+    }
+  })?.value[0];
 
-      setTicket(ticket);
+  useEffect(() => {
+    if (email && emailId !== email.activityid && email._regardingobjectid_value === ticketId) {
+      navigate(`${routes.base}${routes.tickets}/${ticketNumber}/${email.activityid}`);
+    }
+  }, [ticketId, ticketNumber, email, emailId]);
 
-      let emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
+  const latestEmailId = useMemo(() => {
+    return email?.activityid;
+  }, [email]);
 
-      const caseAttachments = (
-        await crmService
-          .tickets()
-          .id(ticket.incidentid)
-          .children("Incident_Emails")
-          .select("activityid")
-          .filter(emailFilter)
-          .orderBy("createdon desc")
-          .expand("email_activity_mime_attachment", ["filename", "mimetype", "_objectid_value"])
-      ).value.flatMap(email => email.email_activity_mime_attachment);
+  const emailContent = useSubscriptionEffect(() => {
+    if (latestEmailId) {
+      return crmService
+        .emailBody()
+        .id(latestEmailId)
+        .getObservable();
+    }
+  });
 
-      setCaseAttachments(caseAttachments);
+  const aeUser = useSubscriptionEffect(() => {
+    if (ticket?.customerid_account?._dyn_accountexecutiveid_value) {
+      return crmService
+        .users()
+        .id(ticket.customerid_account._dyn_accountexecutiveid_value)
+        .select("fullname", "domainname")
+        .getObservable();
+    }
+  });
 
-      if (emailId) {
-        emailFilter += ` and activityid eq ${emailId}`;
+  const amUser = useSubscriptionEffect(() => {
+    if (ticket?.customerid_account?._dyn_accountmanagerid_value) {
+      return crmService
+        .users()
+        .id(ticket.customerid_account._dyn_accountmanagerid_value)
+        .select("fullname", "domainname")
+        .getObservable();
+    }
+  });
+
+  const tsmUser = useSubscriptionEffect(() => {
+    if (ticket?.customerid_account?._owninguser_value) {
+      return crmService
+        .users()
+        .id(ticket.customerid_account._owninguser_value)
+        .select("fullname", "domainname")
+        .getObservable();
+    }
+  });
+
+  useEffect(() => {
+    if (email?.torecipients) {
+      const toEmails = email.torecipients
+        .split(";")
+        .filter(recipient => !!recipient)
+        .map(recipient => ({ email: recipient }));
+
+      setToEmails(toEmails);
+    }
+
+    if (email?.statuscode) {
+      switch (email.statuscode) {
+        case EmailStatus.Draft:
+          setMode("viewDraft");
+          break;
       }
+    }
+  }, [email]);
 
-      const latestEmail = (
-        await crmService
-          .tickets()
-          .id(ticket.incidentid)
-          .children("Incident_Emails")
-          .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "torecipients")
-          .filter(emailFilter)
-          .top(1)
-          .orderBy("createdon desc")
-      ).value[0];
+  const parties = useSubscriptionEffect(() => {
+    if (latestEmailId) {
+      return crmService
+        .emails()
+        .id(latestEmailId)
+        .children("email_activity_parties")
+        .select("addressused", "participationtypemask")
+        .expand("partyid_contact", ["fullname"])
+        .getObservable();
+    }
+  })?.value;
 
-      if (!emailId) {
-        await navigate(`${routes.base}${routes.tickets}/${ticketNumber}/${latestEmail.activityid}`);
-      }
-
-      setEmail(latestEmail);
-
-      setEmailContent(await crmService.emailBody().id(latestEmail.activityid));
-
-      if (ticket.customerid_account) {
-        const accountUserIds = [
-          ticket.customerid_account._dyn_accountexecutiveid_value,
-          ticket.customerid_account._dyn_accountmanagerid_value,
-          ticket.customerid_account._owninguser_value
-        ];
-
-        const getAccountUser = (userId: string) =>
-          crmService
-            .users()
-            .id(userId)
-            .select("fullname", "domainname");
-
-        const [aeUser, amUser, tsmUser] = await Promise.all(
-          accountUserIds.filter(userId => !!userId).map(userId => getAccountUser(userId))
-        );
-
-        setAeUser(aeUser);
-        setAmUser(amUser);
-        setTsmUser(tsmUser);
-      }
-
-      if (latestEmail.torecipients) {
-        const toEmails = latestEmail.torecipients
-          .split(";")
-          .filter(recipient => !!recipient)
-          .map(recipient => ({ email: recipient }));
-
-        setToEmails(toEmails);
-      }
-
-      const parties = (
-        await crmService
-          .emails()
-          .id(latestEmail.activityid)
-          .children("email_activity_parties")
-          .select("addressused", "participationtypemask")
-          .expand("partyid_contact", ["fullname"])
-      ).value;
-
+  useEffect(() => {
+    if (parties) {
       const ccEmails = parties
         .filter(party => party.participationtypemask === ParticipationType.CcRecipient)
         .map(party => ({ name: party.partyid_contact?.fullname, email: party.addressused }));
@@ -221,47 +259,40 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
         .map(party => ({ name: party.partyid_contact?.fullname, email: party.addressused }));
 
       setBccEmails(bccEmails);
-
-      if (latestEmail.statuscode) {
-        switch (latestEmail.statuscode) {
-          case EmailStatus.Draft:
-            setMode("viewDraft");
-            break;
-        }
-      }
-
-      setMode("view");
-    })();
-  }, [crmService, ticketNumber, emailId]);
+    }
+  }, [parties]);
 
   useEffect(() => {
-    if (!currentUser) {
-      (async () => setCurrentUser(await crmService.currentUser()))();
+    if (!(ticket && caseAttachments && email)) {
+      setMode("loading");
+    } else {
+      setMode("view");
     }
-  }, [crmService, currentUser]);
+  }, [ticket, caseAttachments, email]);
 
-  const editEmail = useCallback(async () => {
-    const currentMode = mode;
+  const currentUser = useSubscription(crmService.currentUser().getObservable());
 
-    if (currentUser) {
+  const signature = useSubscriptionEffect(() => {
+    if (currentUser?.UserId) {
+      return crmService
+        .users()
+        .id(currentUser.UserId)
+        .select("dyn_signature")
+        .getObservable();
+    }
+  })?.dyn_signature;
+
+  const editEmail = useCallback(() => {
+    if (currentUser && signature) {
       setMode("loading");
 
-      const userId = currentUser.UserId;
-
-      const signature = (
-        await crmService
-          .users()
-          .id(userId)
-          .select("dyn_signature")
-      ).dyn_signature;
-
-      if (currentMode === "view" && signature && addHtmlRef.current) {
+      if (mode === "view" && addHtmlRef.current) {
         addHtmlRef.current(0, `${signature.replace("\n", "")}${emailTerms.signatureDivider}`);
       }
 
       setMode("edit");
     }
-  }, [mode, crmService, currentUser]);
+  }, [mode, currentUser, signature]);
 
   const sendEmail = useCallback(
     (keepStatus: boolean) => async () => {
@@ -418,7 +449,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
             </Grid>
             <Grid className={styles.emailContent}>
               {mode === "loading" && <Loading overlay />}
-              {emailContent && <EmailEditor2 value={emailContent} addHtmlRef={addHtmlRef} />}
+              {emailContent && <EmailEditor value={emailContent} addHtmlRef={addHtmlRef} />}
             </Grid>
           </Grid>
         </EmailContext.Provider>

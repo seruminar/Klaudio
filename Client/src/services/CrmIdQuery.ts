@@ -39,34 +39,6 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<ICrmApiRespon
     return new CrmChildQuery<CrmChildMap[K]>(this.type, this.id, childName);
   }
 
-  protected TEMP_getUrl(url: string): string {
-    url += `(${this.id})`;
-
-    const parameters = [];
-
-    if (this.selectFields.length > 0) {
-      parameters.push(`$select=${this.selectFields.join(",")}`);
-    }
-
-    if (Object.keys(this.expandQuery).length > 0) {
-      const expansions = [];
-
-      for (const query in this.expandQuery) {
-        const expanded = this.expandQuery[query];
-
-        expanded && expansions.push(`${query}($select=${expanded.join(",")})`);
-      }
-
-      parameters.push(`$expand=${expansions.join(",")}`);
-    }
-
-    if (parameters.length > 0) {
-      url += `?${parameters.join("&")}`;
-    }
-
-    return url;
-  }
-
   protected getRequest(request: Wretcher): Wretcher {
     request = request.url(`(${this.id})`);
 

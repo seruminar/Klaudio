@@ -78,15 +78,13 @@ export const App = boundary(() => {
   const themeContext = { theme, toggleTheme: () => (theme === "light" ? setTheme("dark") : setTheme("light")) };
 
   useEffect(() => {
-    (async () => {
-      const [simpleCrmTicketNumber, simpleCrmEmailId] = window.location.hash.substr(1).split("|");
+    const [simpleCrmTicketNumber, simpleCrmEmailId] = window.location.hash.substr(1).split("|");
 
-      if (simpleCrmTicketNumber && simpleCrmEmailId) {
-        await navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}/${simpleCrmEmailId}`);
-      } else if (simpleCrmTicketNumber) {
-        await navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}`);
-      }
-    })();
+    if (simpleCrmTicketNumber && simpleCrmEmailId) {
+      navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}/${simpleCrmEmailId}`);
+    } else if (simpleCrmTicketNumber) {
+      navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}`);
+    }
   }, []);
 
   return (
