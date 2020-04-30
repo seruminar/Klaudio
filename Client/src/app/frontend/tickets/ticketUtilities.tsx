@@ -46,5 +46,10 @@ export const getFileIcon = (mimeType: string) => {
   }
 };
 
-export const getRecipientLabel = (recipient: IEmailRecipient) =>
-  recipient.name ? `${recipient.name} <${recipient.email}>` : `<${recipient.email}>`;
+export const getRecipientLabel = (recipient: IEmailRecipient) => {
+  if (recipient.name && recipient.email) {
+    return `${recipient.name} <${recipient.email}>`;
+  }
+
+  return recipient.email;
+};

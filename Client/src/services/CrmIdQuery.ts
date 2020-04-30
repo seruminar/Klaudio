@@ -5,10 +5,9 @@ import { CrmChildQuery } from './CrmChildQuery';
 import { CrmEndpoint } from './CrmEndpoint';
 import { CrmQueryBase } from './CrmQueryBase';
 import { ICrmIdQueryBuilder } from './ICrmIdQueryBuilder';
-import { ICrmApiResponse } from './models/ICrmApiResponse';
 import { ICrmEntity } from './models/ICrmEntity';
 
-export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<ICrmApiResponse & T> implements ICrmIdQueryBuilder<T> {
+export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements ICrmIdQueryBuilder<T> {
   private id: Guid;
 
   private selectFields: (keyof T)[];

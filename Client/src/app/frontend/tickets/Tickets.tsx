@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import { Subject } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
+import sortArray from 'sort-array';
 
 import {
     Box,
@@ -32,23 +33,23 @@ import {
     Tooltip
 } from '@material-ui/core';
 import { Alarm, Edit, FilterList, FlashOn, Person, Search } from '@material-ui/icons';
-import { Autocomplete } from '@material-ui/lab';
 
 import { experience } from '../../../appSettings.json';
+import { CrmApiResponse } from '../../../services/CrmApiResponse';
 import { ICrmService } from '../../../services/CrmService';
 import { useDependency } from '../../../services/dependencyContainer';
 import { ICrmTicket } from '../../../services/models/ICrmTicket';
-import { ICrmUser } from '../../../services/models/ICrmUser';
 import { TicketGroup } from '../../../services/models/TicketGroup';
 import { TicketPriority } from '../../../services/models/TicketPriority';
 import { TicketStatus } from '../../../services/models/TicketStatus';
 import { systemUser } from '../../../services/systemUser';
 import { entityNames, tickets as ticketsTerms } from '../../../terms.en-us.json';
-import { useSubscription } from '../../../utilities/observables';
+import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
 import { RoutedFC } from '../../../utilities/routing';
 import { Loading } from '../../shared/Loading';
 import { PaneList } from '../../shared/PaneList';
 import { TicketItem } from './TicketItem';
+import { TicketsFilterField } from './TicketsFilterField';
 
 const EmailView = lazy(() => import("./emailView/EmailView").then(module => ({ default: module.EmailView })));
 
@@ -94,7 +95,6 @@ const useStyles = makeStyles((theme: Theme) =>
       width: "100%",
       padding: theme.spacing(1, 2)
     },
-    itemCount: { flex: 1, textAlign: "right", fontSize: ".75rem" },
     orderByRow: {
       "& > label": {
         margin: "initial"
@@ -116,7 +116,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
   const [ticketQueue, setTicketQueue] = useState<string>(TicketGroup.Support.toString());
   const [ticketStatus, setTicketStatus] = useState<string>(TicketStatus.Queue.toString());
   const [ticketPriority, setTicketPriority] = useState<string | null>(null);
-  const [ticketOwner, setTicketOwner] = useState<ICrmUser | null>(null);
+  const [ticketOwner, setTicketOwner] = useState<string | null>(null);
   const [ticketOrderBy, setTicketOrderBy] = useState<OrderBy>("modified");
   const [orderByReverse, setOrderByReverse] = useState(false);
   const [searchTicketNumber, setSearchTicketNumber] = useState("");
@@ -149,7 +149,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
     filter += ` and statuscode eq ${ticketStatus}`;
 
     if (ticketOwner) {
-      filter += ` and _ownerid_value eq ${ticketOwner.ownerid}`;
+      filter += ` and _ownerid_value eq ${ticketOwner}`;
     }
 
     if (ticketNumber) {
@@ -163,7 +163,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
     return filter;
   }, [ticketQueue, ticketPriority, ticketStatus, ticketOwner, ticketNumber, searchTicketNumberFilter]);
 
-  const tickets = useSubscription(
+  const tickets = useSubscriptionEffect((previousValue: CrmApiResponse<ICrmTicket[]> | undefined) =>
     crmService
       .tickets()
       .select(
@@ -183,7 +183,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
       .orderBy("modifiedon desc")
       .expand("customerid_account", ["name", "ken_customernote", "ken_supportlevel"])
       .expand("owninguser", ["fullname"])
-      .getObservable()
+      .getObservable(previousValue)
   )?.value;
 
   useEffect(() => {
@@ -193,36 +193,38 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
   }, [tickets]);
 
   const usersFilter = useMemo(() => {
-    let filter = "";
-
-    if (ticketQueue) {
-      switch (parseInt(ticketQueue)) {
-        case TicketGroup.Support:
-          filter = `address1_telephone3 eq 'supportplugin' or address1_telephone3 eq 'supportconsultingplugin'`;
-          break;
-        case TicketGroup.Consulting:
-          filter = `address1_telephone3 eq 'consultingplugin' or address1_telephone3 eq 'supportconsultingplugin'`;
-          break;
-        case TicketGroup.SalesEngineering:
-          filter = `address1_telephone3 eq 'salesplugin'`;
-          break;
-        case TicketGroup.Training:
-          filter = `address1_telephone3 eq 'trainingplugin'`;
-          break;
-      }
+    switch (parseInt(ticketQueue)) {
+      case TicketGroup.Support:
+        return `address1_telephone3 eq 'supportplugin' or address1_telephone3 eq 'supportconsultingplugin'`;
+      case TicketGroup.Consulting:
+        return `address1_telephone3 eq 'consultingplugin' or address1_telephone3 eq 'supportconsultingplugin'`;
+      case TicketGroup.SalesEngineering:
+        return `address1_telephone3 eq 'salesplugin'`;
+      case TicketGroup.Training:
+        return `address1_telephone3 eq 'trainingplugin'`;
     }
-
-    return filter;
   }, [ticketQueue]);
 
-  const users = useSubscription(
-    crmService
-      .users()
-      .select("fullname", "systemuserid", "address1_telephone3")
-      .filter(usersFilter)
-      .orderBy("fullname")
-      .getObservable()
-  )?.value;
+  const users = useSubscriptionEffect(() => {
+    if (usersFilter) {
+      return crmService
+        .users()
+        .select("fullname", "systemuserid", "address1_telephone3")
+        .filter(usersFilter)
+        .orderBy("fullname")
+        .getObservable();
+    }
+  }, [usersFilter])?.value;
+
+  const usersFilterOptions = useMemo(() => {
+    let options: { [key: string]: string } = {};
+
+    if (users) {
+      [systemUser, ...users].map(user => (options[user.systemuserid] = user.fullname ?? user.systemuserid));
+    }
+
+    return options;
+  }, [users]);
 
   useEffect(() => {
     const subscription = searchTicketNumberStream.current.pipe(debounceTime(experience.searchTimeout)).subscribe({
@@ -235,39 +237,37 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const orderedTickets = useMemo(
-    () =>
-      tickets?.sort((a: ICrmTicket, b: ICrmTicket) => {
-        switch (ticketOrderBy) {
-          case "modified":
-            if (a.modifiedon && b.modifiedon) {
-              return orderByReverse ? (a.modifiedon > b.modifiedon ? 1 : -1) : a.modifiedon < b.modifiedon ? 1 : -1;
-            }
-            break;
-          case "due":
-            if (a.ken_sladuedate && b.ken_sladuedate) {
-              return orderByReverse ? (a.ken_sladuedate < b.ken_sladuedate ? 1 : -1) : a.ken_sladuedate > b.ken_sladuedate ? 1 : -1;
-            }
-            break;
-          case "owner":
-            if (a.owninguser?.fullname && b.owninguser?.fullname) {
-              if (b.owninguser.systemuserid === systemUser.systemuserid) {
-                return 1;
-              }
+  const orderedTickets = useMemo(() => {
+    if (tickets) {
+      const order = orderByReverse ? "asc" : "desc";
 
-              return orderByReverse
-                ? a.owninguser.fullname < b.owninguser.fullname
-                  ? 1
-                  : -1
-                : a.owninguser.fullname > b.owninguser.fullname
-                ? 1
-                : -1;
+      switch (ticketOrderBy) {
+        case "modified":
+          return sortArray(tickets, {
+            by: "modifiedon",
+            order
+          });
+        case "due":
+          return sortArray(tickets, {
+            by: "ken_sladuedate",
+            order
+          });
+        case "owner":
+          return sortArray(tickets, {
+            by: "name",
+            order,
+            computed: {
+              name: ticket =>
+                ticket.owninguser?.systemuserid === systemUser.systemuserid ? (orderByReverse ? "Zz" : "Aa") : ticket.owninguser?.fullname
             }
-            break;
-          case "priority":
-            if (a.prioritycode && b.prioritycode) {
-              const getPrioritySort = (ticketPriority: TicketPriority) => {
-                switch (ticketPriority) {
+          });
+        case "priority":
+          return sortArray(tickets, {
+            by: "priority",
+            order,
+            computed: {
+              priority: ticket => {
+                switch (ticket.prioritycode) {
                   case TicketPriority.FireFighting:
                     return 1;
                   case TicketPriority.HighPriority:
@@ -281,23 +281,12 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
                   case TicketPriority.Processed:
                     return 6;
                 }
-              };
-
-              return orderByReverse
-                ? getPrioritySort(a.prioritycode) < getPrioritySort(b.prioritycode)
-                  ? 1
-                  : -1
-                : getPrioritySort(a.prioritycode) > getPrioritySort(b.prioritycode)
-                ? 1
-                : -1;
+              }
             }
-            break;
-        }
-
-        return 0;
-      }),
-    [tickets, ticketOrderBy, orderByReverse]
-  );
+          });
+      }
+    }
+  }, [tickets, ticketOrderBy, orderByReverse]);
 
   const changeTab = useCallback((_event: ChangeEvent<{}>, newValue: TicketsTabs) => {
     switch (newValue) {
@@ -327,126 +316,52 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
           {users && allTickets && (
             <>
               <Box className={styles.filterField}>
-                <Autocomplete
-                  options={Object.keys(entityNames.ticketGroup)}
-                  getOptionLabel={option => (entityNames.ticketGroup as any)[option]}
-                  renderOption={option => {
-                    const count = allTickets
-                      .filter(ticket => ticket.dyn_ticket_group === parseInt(option))
-                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length;
-
-                    return (
-                      <>
-                        <span>{(entityNames.ticketGroup as any)[option]}</span>
-                        {count > 0 && <span className={styles.itemCount}>{count}</span>}
-                      </>
-                    );
-                  }}
+                <TicketsFilterField
+                  options={entityNames.ticketGroup}
+                  label={ticketsTerms.queue}
+                  getCount={value =>
+                    allTickets
+                      .filter(ticket => ticket.dyn_ticket_group === parseInt(value))
+                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length
+                  }
                   value={ticketQueue}
-                  onChange={(_event: any, newValue: string | null) => {
-                    setTicketQueue(newValue ? newValue : TicketGroup.Support.toString());
-                  }}
-                  renderInput={params => {
-                    const count = allTickets
-                      .filter(ticket => ticket.dyn_ticket_group === (TicketGroup[(params.inputProps as any).value] as any))
-                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length;
-
-                    params.InputProps.endAdornment = (
-                      <span className={styles.itemCount}>
-                        {count > 0 && count}
-                        {params.InputProps.endAdornment}
-                      </span>
-                    );
-
-                    return <TextField {...params} label={ticketsTerms.queue} />;
-                  }}
+                  setValue={value => setTicketQueue(value ? value : TicketGroup.Support.toString())}
                 />
               </Box>
               <Box className={styles.filterField}>
-                <Autocomplete
-                  options={Object.keys(entityNames.ticketPriority)}
-                  getOptionLabel={option => (entityNames.ticketPriority as any)[option]}
-                  renderOption={option => {
-                    const count = allTickets
+                <TicketsFilterField
+                  options={entityNames.ticketPriority}
+                  label={ticketsTerms.priority}
+                  getCount={value =>
+                    allTickets
                       .filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                      .filter(ticket => ticket.prioritycode === parseInt(option))
-                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length;
-
-                    return (
-                      <>
-                        <span>{(entityNames.ticketPriority as any)[option]}</span>
-                        {count > 0 && <span className={styles.itemCount}>{count}</span>}
-                      </>
-                    );
-                  }}
+                      .filter(ticket => ticket.prioritycode === parseInt(value))
+                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length
+                  }
                   value={ticketPriority}
-                  onChange={(_event: any, newValue: string | null) => {
-                    setTicketPriority(newValue);
-                  }}
-                  renderInput={params => {
-                    const count = allTickets
-                      .filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                      .filter(ticket => ticket.prioritycode === (TicketPriority[(params.inputProps as any).value] as any))
-                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length;
-
-                    params.InputProps.endAdornment = (
-                      <span className={styles.itemCount}>
-                        {count > 0 && count}
-                        {params.InputProps.endAdornment}
-                      </span>
-                    );
-
-                    return <TextField {...params} label={ticketsTerms.priority} />;
-                  }}
+                  setValue={value => setTicketPriority(value)}
                 />
               </Box>
               <Box className={styles.filterField}>
-                <Autocomplete
-                  options={Object.keys(entityNames.ticketStatus)}
-                  getOptionLabel={option => (entityNames.ticketStatus as any)[option]}
+                <TicketsFilterField
+                  options={entityNames.ticketStatus}
+                  label={ticketsTerms.status}
                   value={ticketStatus}
-                  onChange={(_event: any, newValue: string | null) => {
-                    setTicketStatus(newValue ? newValue : TicketStatus.Queue.toString());
-                  }}
-                  renderInput={params => <TextField {...params} label={ticketsTerms.status} />}
+                  setValue={value => setTicketStatus(value ? value : TicketStatus.Queue.toString())}
                 />
               </Box>
               <Box className={styles.filterField}>
-                <Autocomplete
-                  options={[systemUser, ...users]}
-                  getOptionLabel={option => option.fullname ?? option.systemuserid}
-                  renderOption={option => {
-                    const count = allTickets
+                <TicketsFilterField
+                  options={usersFilterOptions}
+                  label={ticketsTerms.owner}
+                  getCount={value =>
+                    allTickets
                       .filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
                       .filter(ticket => ticket.statuscode === parseInt(ticketStatus))
-                      .filter(ticket => ticket._ownerid_value === option.ownerid).length;
-
-                    return (
-                      <>
-                        <span>{option.fullname}</span>
-                        {count > 0 && <span className={styles.itemCount}>{count}</span>}
-                      </>
-                    );
-                  }}
+                      .filter(ticket => ticket._ownerid_value === value).length
+                  }
                   value={ticketOwner}
-                  onChange={(_event: any, newValue: ICrmUser | null) => {
-                    setTicketOwner(newValue);
-                  }}
-                  renderInput={params => {
-                    const count = allTickets
-                      .filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus))
-                      .filter(ticket => ticket.owninguser?.fullname === (params.inputProps as any).value).length;
-
-                    params.InputProps.endAdornment = (
-                      <span className={styles.itemCount}>
-                        {count > 0 && count}
-                        {params.InputProps.endAdornment}
-                      </span>
-                    );
-
-                    return <TextField {...params} label={ticketsTerms.owner} />;
-                  }}
+                  setValue={value => setTicketOwner(value)}
                 />
               </Box>
               <Box className={styles.filterField}>
@@ -544,9 +459,9 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
         {!tickets && <Loading />}
         {orderedTickets?.map(ticket => (
           <TicketItem
-            key={ticket.ticketnumber}
+            key={ticket.incidentid}
             ticket={ticket}
-            owner={ticket.owninguser?.ownerid === systemUser.ownerid ? systemUser : ticket.owninguser}
+            owner={ticket.owninguser?.systemuserid === systemUser.systemuserid ? systemUser : ticket.owninguser}
           />
         ))}
       </PaneList>

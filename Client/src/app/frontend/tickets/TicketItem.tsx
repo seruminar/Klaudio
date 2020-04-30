@@ -118,7 +118,7 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
           </Typography>
         </Grid>
         <Grid item>
-          <Suspense fallback={<Loading />}>{ticketIsSelected(ticket) && <TicketDetails ticket={ticket} />}</Suspense>
+          {/* <Suspense fallback={<Loading />}>{ticketIsSelected(ticket) && <TicketDetails ticket={ticket} />}</Suspense> */}
         </Grid>
       </Grid>
     </ListItem>

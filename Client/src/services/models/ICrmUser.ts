@@ -8,7 +8,6 @@ export interface ICrmUser extends ICrmEntity {
   systemuserid: string;
   address1_telephone3?: UserType;
   dyn_signature?: string;
-  ownerid: string;
   accessmode?: UserAccessMode;
   internalemailaddress?: string;
 }

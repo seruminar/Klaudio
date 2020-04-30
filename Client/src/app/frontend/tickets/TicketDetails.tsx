@@ -108,77 +108,58 @@ const useStyles = makeStyles((theme: Theme) =>
 export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
   const styles = useStyles();
 
+  const [ticketTags, setTicketTags] = useState<ICrmTag[]>();
+
   const context = useMatch(`${routes.base}${routes.tickets}/:ticketNumber/:emailId`);
 
   const crmService = useDependency(ICrmService);
 
-  const [ticketTags, setTicketTags] = useState<ICrmTag[]>();
-
-  const csProjectsFilter = useMemo(() => {
-    if (ticket.customerid_account) {
-      return `_ken_customerid_value eq ${ticket.customerid_account.accountid} and ken_csprojectstatus ne 281600009`;
-    }
-  }, [ticket.customerid_account]);
-
   const csProjects = useSubscriptionEffect(() => {
-    if (csProjectsFilter) {
+    if (ticket.customerid_account) {
       return crmService
         .csProjects()
         .select("ken_productfamily", "ken_name", "ken_csprojectdetails", "ken_customersuccessprojectid", "createdon")
-        .filter(csProjectsFilter)
+        .filter(`_ken_customerid_value eq ${ticket.customerid_account.accountid} and ken_csprojectstatus ne 281600009`)
         .orderBy("createdon desc")
         .getObservable();
     }
-  })?.value;
-
-  const accountServicesFilter = useMemo(() => {
-    if (ticket.customerid_account) {
-      return `_ken_accountid_value eq ${ticket.customerid_account.accountid} and ken_servicetype ne ${ServiceType.CustomerSuccess}`;
-    }
-  }, [ticket.customerid_account]);
+  }, [ticket.customerid_account])?.value;
 
   const accountServices = useSubscriptionEffect(() => {
-    if (accountServicesFilter) {
+    if (ticket.customerid_account) {
       return crmService
         .services()
         .select("ken_name", "ken_remainingcredits", "ken_credits", "statuscode", "ken_expireson", "ken_servicetype")
-        .filter(accountServicesFilter)
+        .filter(`_ken_accountid_value eq ${ticket.customerid_account.accountid} and ken_servicetype ne ${ServiceType.CustomerSuccess}`)
         .orderBy("ken_expireson desc")
         .getObservable();
     }
-  })?.value;
+  }, [ticket.customerid_account])?.value;
 
-  const recentTicketsFilter = useMemo(() => {
-    if (ticket.customerid_account) {
-      const date = new Date();
-      date.setHours(date.getHours() - experience.recentCasesDays * 24);
-
-      return `_customerid_value eq ${ticket.customerid_account.accountid} and (createdon gt ${
-        process.env.NODE_ENV === "development" ? "2020-04-13T04%3A41%3A45.381Z" : date.toISOString()
-      } or statuscode eq ${TicketStatus.Queue})`;
+  const recentTicketsDate = useMemo(() => {
+    if (process.env.NODE_ENV === "development") {
+      return new Date("2020-04-13").toISOString();
     }
-  }, [ticket.customerid_account]);
+
+    const date = new Date();
+    date.setHours(date.getHours() - experience.recentCasesDays * 24);
+
+    return date.toISOString();
+  }, []);
 
   const recentTickets = useSubscriptionEffect(() => {
-    if (recentTicketsFilter) {
+    if (ticket.customerid_account) {
       return crmService
         .tickets()
-        .select(
-          "title",
-          "ken_sladuedate",
-          "modifiedon",
-          "ticketnumber",
-          "dyn_issla",
-          "dyn_is2level",
-          "prioritycode",
-          "dyn_ticket_group",
-          "statuscode"
+        .select("title", "modifiedon", "ticketnumber", "dyn_issla", "dyn_is2level", "prioritycode")
+        .filter(
+          `incidentid ne ${ticket.incidentid} and _customerid_value eq ${ticket.customerid_account.accountid} and (createdon gt ${recentTicketsDate} or statuscode eq ${TicketStatus.Queue})`
         )
-        .filter(recentTicketsFilter)
         .orderBy("modifiedon desc")
+        .expand("customerid_account", ["ken_supportlevel"])
         .getObservable();
     }
-  })?.value;
+  }, [ticket.customerid_account, recentTicketsDate])?.value;
 
   const ticketEmails = useSubscription(
     crmService
@@ -212,7 +193,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
       .getObservable()
   )?.value;
 
-  const newTicketTags = useSubscription(
+  const rawTicketTags = useSubscription(
     crmService
       .tickets()
       .id(ticket.incidentid)
@@ -223,10 +204,10 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
   )?.value;
 
   useEffect(() => {
-    if (newTicketTags) {
-      setTicketTags(newTicketTags.map(connection => ({ dyn_tagid: connection.connectionid, dyn_name: connection.name })));
+    if (rawTicketTags) {
+      setTicketTags(rawTicketTags.map(connection => ({ dyn_tagid: connection.connectionid, dyn_name: connection.name })));
     }
-  }, [newTicketTags]);
+  }, [rawTicketTags]);
 
   const allTags = useSubscription(
     crmService

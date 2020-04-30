@@ -1,6 +1,5 @@
-import { BehaviorSubject } from 'rxjs';
+import { ICrmQueryBase } from './ICrmQueryBase';
 
-export interface ICrmEmailBodyQueryBuilder {
+export interface ICrmEmailBodyQueryBuilder extends ICrmQueryBase<string | undefined> {
   id: (id: Guid) => ICrmEmailBodyQueryBuilder;
-  getObservable: () => BehaviorSubject<string | undefined>;
 }

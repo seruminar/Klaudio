@@ -3,11 +3,13 @@ import wretch, { Wretcher } from 'wretch';
 
 import { context } from '../appSettings.json';
 import { wait } from '../utilities/promises';
+import { CrmApiResponse } from './CrmApiResponse';
 import { CrmEndpoint } from './CrmEndpoint';
+import { ICrmQueryBase } from './ICrmQueryBase';
 
 const observables: { [url: string]: SubscriptionLike } = {};
 
-export abstract class CrmQueryBase<TResponse> {
+export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
   protected type: CrmEndpoint;
 
   constructor(type: CrmEndpoint) {
@@ -16,7 +18,7 @@ export abstract class CrmQueryBase<TResponse> {
 
   protected abstract getRequest(request: Wretcher): Wretcher;
 
-  getObservable(): BehaviorSubject<TResponse | undefined> {
+  getObservable(previousValue: CrmApiResponse<T> | undefined): BehaviorSubject<CrmApiResponse<T> | undefined> {
     const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}`));
 
     const fullUrl = request._url;
@@ -24,10 +26,10 @@ export abstract class CrmQueryBase<TResponse> {
     let observable = observables[fullUrl];
 
     if (observable) {
-      return observable as BehaviorSubject<TResponse | undefined>;
+      return observable as BehaviorSubject<CrmApiResponse<T> | undefined>;
     }
 
-    const newObservable = new BehaviorSubject<TResponse | undefined>(undefined);
+    const newObservable = new BehaviorSubject<CrmApiResponse<T> | undefined>(previousValue);
 
     observables[fullUrl] = newObservable;
 
@@ -48,20 +50,20 @@ export abstract class CrmQueryBase<TResponse> {
       for (const response in TEMP_responses) {
         if ((TEMP_responses as any)[response].url === request._url) {
           if (this.type === undefined) {
-            return ((TEMP_responses as any)[response].value as unknown) as TResponse;
+            return ((TEMP_responses as any)[response].value as unknown) as CrmApiResponse<T>;
           }
 
-          return ((TEMP_responses as any)[response] as unknown) as TResponse;
+          return ((TEMP_responses as any)[response] as unknown) as CrmApiResponse<T>;
         }
       }
 
-      return {} as TResponse;
+      throw new Error(`DEV: undefined response for "${request._url}".`);
     }
 
     return await this.sendRequest(request);
   }
 
   protected async sendRequest(request: Wretcher) {
-    return await request.get().json<TResponse>();
+    return await request.get().json<CrmApiResponse<T>>();
   }
 }

@@ -25,6 +25,7 @@ const useStyles = makeStyles((theme: Theme) =>
       "& .sun-editor": {
         minHeight: 0,
         padding: theme.spacing(1),
+        borderRadius: theme.spacing(2),
         width: "100%",
         border: "none",
         backgroundColor: theme.palette.type === "light" ? theme.palette.background.default : grey[700],
@@ -46,7 +47,7 @@ const useStyles = makeStyles((theme: Theme) =>
         }
       }
     },
-    editorModeView: {},
+    editorModeView: { "& .sun-editor": { "& .se-resizing-bar": { display: "none" } } },
     editorModeEdit: {
       border: `1px solid ${theme.palette.action.selected}`,
       transition: theme.transitions.create(["border", "box-shadow"], {

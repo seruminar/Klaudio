@@ -1,4 +1,5 @@
 import React, { createContext, FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import sortArray from 'sort-array';
 
 import {
     Box,
@@ -103,7 +104,17 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
   const ticket = useSubscription(
     crmService
       .tickets()
-      .select("title", "ken_sladuedate", "modifiedon", "_ownerid_value", "dyn_issla", "dyn_is2level", "prioritycode", "statuscode")
+      .select(
+        "title",
+        "ken_sladuedate",
+        "modifiedon",
+        "_ownerid_value",
+        "dyn_issla",
+        "dyn_is2level",
+        "prioritycode",
+        "statuscode",
+        "_ken_latestcontact_value"
+      )
       .filter(`ticketnumber eq '${ticketNumber}'`)
       .top(1)
       .expand("customerid_account", [
@@ -118,21 +129,11 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
       .getObservable()
   )?.value[0];
 
-  const ticketId = useMemo(() => {
-    return ticket?.incidentid;
-  }, [ticket]);
+  const ticketId = ticket?.incidentid;
 
-  const emailFilter = useMemo(() => {
-    let filter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
+  const emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
 
-    if (emailId) {
-      filter += ` and activityid eq ${emailId}`;
-    }
-
-    return filter;
-  }, [emailId]);
-
-  const newCaseAttachments = useSubscriptionEffect(() => {
+  const rawCaseAttachments = useSubscriptionEffect(() => {
     if (ticketId) {
       return crmService
         .tickets()
@@ -144,27 +145,29 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
         .expand("email_activity_mime_attachment", ["filename", "mimetype", "_objectid_value"])
         .getObservable();
     }
-  })?.value;
+  }, [ticketId])?.value;
 
   useEffect(() => {
-    if (newCaseAttachments) {
-      setCaseAttachments(newCaseAttachments.flatMap(email => email.email_activity_mime_attachment));
+    if (rawCaseAttachments) {
+      setCaseAttachments(rawCaseAttachments.flatMap(email => email.email_activity_mime_attachment));
     }
-  }, [newCaseAttachments]);
+  }, [rawCaseAttachments]);
 
   const email = useSubscriptionEffect(() => {
+    let contextEmailFilter = emailId ? `${emailFilter} and activityid eq ${emailId}` : emailFilter;
+
     if (ticketId) {
       return crmService
         .tickets()
         .id(ticketId)
         .children("Incident_Emails")
         .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "torecipients", "_regardingobjectid_value")
-        .filter(emailFilter)
+        .filter(contextEmailFilter)
         .top(1)
         .orderBy("createdon desc")
         .getObservable();
     }
-  })?.value[0];
+  }, [ticketId, emailId])?.value[0];
 
   useEffect(() => {
     if (email && emailId !== email.activityid && email._regardingobjectid_value === ticketId) {
@@ -172,48 +175,14 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
     }
   }, [ticketId, ticketNumber, email, emailId]);
 
-  const latestEmailId = useMemo(() => {
-    return email?.activityid;
-  }, [email]);
-
   const emailContent = useSubscriptionEffect(() => {
-    if (latestEmailId) {
+    if (email?.activityid) {
       return crmService
         .emailBody()
-        .id(latestEmailId)
+        .id(email.activityid)
         .getObservable();
     }
-  });
-
-  const aeUser = useSubscriptionEffect(() => {
-    if (ticket?.customerid_account?._dyn_accountexecutiveid_value) {
-      return crmService
-        .users()
-        .id(ticket.customerid_account._dyn_accountexecutiveid_value)
-        .select("fullname", "domainname")
-        .getObservable();
-    }
-  });
-
-  const amUser = useSubscriptionEffect(() => {
-    if (ticket?.customerid_account?._dyn_accountmanagerid_value) {
-      return crmService
-        .users()
-        .id(ticket.customerid_account._dyn_accountmanagerid_value)
-        .select("fullname", "domainname")
-        .getObservable();
-    }
-  });
-
-  const tsmUser = useSubscriptionEffect(() => {
-    if (ticket?.customerid_account?._owninguser_value) {
-      return crmService
-        .users()
-        .id(ticket.customerid_account._owninguser_value)
-        .select("fullname", "domainname")
-        .getObservable();
-    }
-  });
+  }, [email]);
 
   useEffect(() => {
     if (email?.torecipients) {
@@ -235,16 +204,16 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
   }, [email]);
 
   const parties = useSubscriptionEffect(() => {
-    if (latestEmailId) {
+    if (email?.activityid) {
       return crmService
         .emails()
-        .id(latestEmailId)
+        .id(email.activityid)
         .children("email_activity_parties")
         .select("addressused", "participationtypemask")
         .expand("partyid_contact", ["fullname"])
         .getObservable();
     }
-  })?.value;
+  }, [email])?.value;
 
   useEffect(() => {
     if (parties) {
@@ -280,7 +249,29 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
         .select("dyn_signature")
         .getObservable();
     }
-  })?.dyn_signature;
+  }, [currentUser])?.dyn_signature;
+
+  const emailAttachments = useMemo(() => {
+    if (caseAttachments) {
+      const emailAttachments = caseAttachments.filter(attachment => attachment._objectid_value === email?.activityid);
+
+      return sortArray(emailAttachments, {
+        by: "filesize",
+        order: "desc"
+      });
+    }
+  }, [caseAttachments, email]);
+
+  const otherAttachments = useMemo(() => {
+    if (caseAttachments) {
+      const emailAttachments = caseAttachments.filter(attachment => attachment._objectid_value !== email?.activityid);
+
+      return sortArray(emailAttachments, {
+        by: "filesize",
+        order: "desc"
+      });
+    }
+  }, [caseAttachments, email]);
 
   const editEmail = useCallback(() => {
     if (currentUser && signature) {
@@ -306,24 +297,6 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
     []
   );
 
-  const orderedAttachments = useMemo(
-    () =>
-      caseAttachments?.sort((a: ICrmAttachment, b: ICrmAttachment) => {
-        if (b._objectid_value && b._objectid_value === email?.activityid) {
-          if (a._objectid_value && a._objectid_value === email?.activityid) {
-            return a.filesize < b.filesize ? 1 : -1;
-          }
-
-          return 1;
-        }
-
-        return a.filesize < b.filesize ? 1 : -1;
-      }),
-    [caseAttachments, email]
-  );
-
-  const getAttachmentIcon = useCallback(getFileIcon, [getFileIcon]);
-
   const removeAttachment = useCallback(
     (attachment: ICrmAttachment) => {
       if (caseAttachments) {
@@ -337,23 +310,14 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
 
   return (
     <Box className={styles.root}>
-      {!(ticket && caseAttachments && email) && <Loading />}
-      {ticket && caseAttachments && email && (
+      {!(ticket && email && rawCaseAttachments && emailAttachments && otherAttachments) && <Loading />}
+      {ticket && email && rawCaseAttachments && emailAttachments && otherAttachments && (
         <EmailContext.Provider value={emailContext}>
           <Grid container className={styles.container} direction="column" justify="flex-start">
             <Typography variant="h6">{ticket.title}</Typography>
             <Grid container direction="row">
               <TicketIcon ticket={ticket} />
-              <EmailMetadata
-                ticket={ticket}
-                email={email}
-                toEmails={toEmails}
-                ccEmails={ccEmails}
-                bccEmails={bccEmails}
-                aeUser={aeUser}
-                amUser={amUser}
-                tsmUser={tsmUser}
-              />
+              <EmailMetadata ticket={ticket} email={email} toEmails={toEmails} ccEmails={ccEmails} bccEmails={bccEmails} />
               <div className={styles.spacer} />
               {(mode === "view" || mode === "loading") && (
                 <Tooltip title={emailTerms.reply} aria-label={emailTerms.reply}>
@@ -427,20 +391,33 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
                     icon={<AttachFile />}
                   />
                 )}
-                {orderedAttachments?.map(attachment => {
+                {emailAttachments.map(attachment => {
                   const [size, unit] = getSizeText(attachment.filesize);
-
-                  const belongsToThisEmail = attachment._objectid_value && attachment._objectid_value === email.activityid;
 
                   return (
                     <Chip
                       key={attachment.activitymimeattachmentid}
                       className={styles.attachment}
                       clickable
-                      onDelete={mode === "edit" && belongsToThisEmail ? () => removeAttachment(attachment) : undefined}
+                      onDelete={mode === "edit" ? () => removeAttachment(attachment) : undefined}
                       size="small"
-                      variant={belongsToThisEmail ? "default" : "outlined"}
-                      icon={getAttachmentIcon(attachment.mimetype ?? "")}
+                      variant="default"
+                      icon={getFileIcon(attachment.mimetype ?? "")}
+                      label={`${attachment.filename} ${size} ${unit}`}
+                    />
+                  );
+                })}
+                {otherAttachments.map(attachment => {
+                  const [size, unit] = getSizeText(attachment.filesize);
+
+                  return (
+                    <Chip
+                      key={attachment.activitymimeattachmentid}
+                      className={styles.attachment}
+                      clickable
+                      size="small"
+                      variant="outlined"
+                      icon={getFileIcon(attachment.mimetype ?? "")}
                       label={`${attachment.filename} ${size} ${unit}`}
                     />
                   );

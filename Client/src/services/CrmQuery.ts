@@ -4,10 +4,9 @@ import { CrmEndpoint } from './CrmEndpoint';
 import { CrmIdQuery } from './CrmIdQuery';
 import { CrmQueryBase } from './CrmQueryBase';
 import { ICrmQueryBuilder } from './ICrmQueryBuilder';
-import { ICrmApiResponse } from './models/ICrmApiResponse';
 import { ICrmEntity } from './models/ICrmEntity';
 
-export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<ICrmApiResponse & { value: T[] }> implements ICrmQueryBuilder<T> {
+export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements ICrmQueryBuilder<T> {
   private topQuery: number;
 
   private selectFields: (keyof T)[];

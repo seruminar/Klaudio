@@ -37,6 +37,7 @@ import { Snack } from './header/Snack';
 import { ISnack, showSnack } from './header/snacks';
 
 const Tickets = lazy(() => import("./tickets/Tickets").then(module => ({ default: module.Tickets })));
+const ByEmail = lazy(() => import("./tickets/ByEmail").then(module => ({ default: module.ByEmail })));
 const Error = lazy(() => import("../shared/Error").then(module => ({ default: module.Error })));
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -201,6 +202,7 @@ export const Frontend: RoutedFC = () => {
           <Suspense fallback={<Loading />}>
             <Router className={styles.router}>
               <Redirect from="/" to={`${routes.base}${routes.tickets}`} noThrow />
+              <ByEmail path={`${routes.byEmail}/*emailId`} />
               <Tickets path={`${routes.tickets}/*ticketPath`} />
               <Error path={routes.error} default message={errors.notFound} />
             </Router>

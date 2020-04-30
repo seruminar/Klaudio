@@ -22,6 +22,7 @@ export interface ICrmTicket extends ICrmEntity {
   ken_documentationlinks?: string | null;
   dyn_ticket_group?: TicketGroup;
   _customerid_value?: Guid;
+  _ken_latestcontact_value?: Guid;
   primarycontactid?: ICrmContact | null;
   customerid_account?: ICrmAccount | null;
   owninguser?: ICrmUser;

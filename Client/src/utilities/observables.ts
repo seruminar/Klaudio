@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { DependencyList, useEffect, useMemo, useState } from 'react';
 import { BehaviorSubject } from 'rxjs';
 import { useSubscription as useS } from 'use-subscription';
 
@@ -17,15 +17,20 @@ export const useSubscription = <T>(behaviorSubject: BehaviorSubject<T>) =>
     )
   );
 
-export const useSubscriptionEffect = <T>(getObservable: () => BehaviorSubject<T | undefined> | undefined) => {
+export const useSubscriptionEffect = <T>(
+  getObservable: (previous: T | undefined) => BehaviorSubject<T | undefined> | undefined,
+  deps?: DependencyList
+) => {
   const [observable, setObservable] = useState(new BehaviorSubject<T | undefined>(undefined));
 
   useEffect(() => {
-    const observable = getObservable();
-    if (observable) {
-      setObservable(observable);
+    const newObservable = getObservable(observable.getValue());
+
+    if (newObservable) {
+      setObservable(newObservable);
     }
-  }, [getObservable]);
+    // eslint-disable-next-line
+  }, [observable, getObservable, ...(deps || [])]);
 
   return useSubscription(observable);
 };

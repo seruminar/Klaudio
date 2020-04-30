@@ -2,6 +2,7 @@ import moment from 'moment';
 import React, { FC, MouseEvent, useCallback, useContext, useMemo, useState } from 'react';
 
 import {
+    Box,
     createStyles,
     IconButton,
     makeStyles,
@@ -12,10 +13,13 @@ import {
 } from '@material-ui/core';
 import { ExpandLess, ExpandMore } from '@material-ui/icons';
 
+import { ICrmService } from '../../../../services/CrmService';
+import { useDependency } from '../../../../services/dependencyContainer';
+import { ContactPosition } from '../../../../services/models/ICrmContact';
 import { ICrmEmail } from '../../../../services/models/ICrmEmail';
 import { ICrmTicket } from '../../../../services/models/ICrmTicket';
-import { ICrmUser } from '../../../../services/models/ICrmUser';
-import { email as emailTerms } from '../../../../terms.en-us.json';
+import { email as emailTerms, entityNames } from '../../../../terms.en-us.json';
+import { useSubscriptionEffect } from '../../../../utilities/observables';
 import { Loading } from '../../../shared/Loading';
 import { getRecipientLabel } from '../ticketUtilities';
 import { EmailDetailLine } from './EmailDetailLine';
@@ -28,9 +32,6 @@ interface IEmailMetadataProps {
   toEmails?: IEmailRecipient[];
   ccEmails?: IEmailRecipient[];
   bccEmails?: IEmailRecipient[];
-  aeUser?: ICrmUser;
-  amUser?: ICrmUser;
-  tsmUser?: ICrmUser;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -41,17 +42,81 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     metadata: {
       margin: theme.spacing(0, 2)
+    },
+    contact: {
+      display: "flex"
     }
   })
 );
 
-export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails, ccEmails, bccEmails, aeUser, amUser, tsmUser }) => {
+export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails, ccEmails, bccEmails }) => {
   const styles = useStyles();
 
   const [popoverEl, setPopoverEl] = useState<HTMLButtonElement | null>(null);
-  const popoverIsOpen = useMemo(() => Boolean(popoverEl), [popoverEl]);
 
   const { mode } = useContext(EmailContext);
+
+  const crmService = useDependency(ICrmService);
+
+  const latestContact = useSubscriptionEffect(() => {
+    if (!ticket.primarycontactid && ticket._ken_latestcontact_value) {
+      return crmService
+        .contacts()
+        .id(ticket._ken_latestcontact_value)
+        .select("contactid", "fullname", "ken_position", "ken_supportlevel", "ken_comment")
+        .getObservable();
+    }
+  }, [ticket]);
+
+  const aeUser = useSubscriptionEffect(() => {
+    if (ticket?.customerid_account?._dyn_accountexecutiveid_value) {
+      return crmService
+        .users()
+        .id(ticket.customerid_account._dyn_accountexecutiveid_value)
+        .select("fullname", "domainname")
+        .getObservable();
+    }
+  }, [ticket]);
+
+  const amUser = useSubscriptionEffect(() => {
+    if (ticket?.customerid_account?._dyn_accountmanagerid_value) {
+      return crmService
+        .users()
+        .id(ticket.customerid_account._dyn_accountmanagerid_value)
+        .select("fullname", "domainname")
+        .getObservable();
+    }
+  }, [ticket]);
+
+  const tsmUser = useSubscriptionEffect(() => {
+    if (ticket?.customerid_account?._owninguser_value) {
+      return crmService
+        .users()
+        .id(ticket.customerid_account._owninguser_value)
+        .select("fullname", "domainname")
+        .getObservable();
+    }
+  }, [ticket]);
+
+  const displayContact = ticket.primarycontactid ?? latestContact;
+
+  const displayContactTooltip = useMemo(() => {
+    if (displayContact) {
+      let tooltipParts = [];
+
+      if (displayContact.ken_supportlevel) {
+        tooltipParts.push(entityNames.supportLevel[displayContact.ken_supportlevel]);
+      }
+
+      if (displayContact.ken_position && displayContact.ken_position !== ContactPosition.Unknown) {
+        tooltipParts.push(entityNames.contactPosition[displayContact.ken_position]);
+      }
+
+      return tooltipParts.join(" ");
+    }
+  }, [displayContact]);
+
+  const popoverIsOpen = useMemo(() => Boolean(popoverEl), [popoverEl]);
 
   const openMorePopover = useCallback((event: MouseEvent<HTMLButtonElement>) => {
     setPopoverEl(event.currentTarget);
@@ -64,8 +129,15 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
   return (
     <div className={styles.metadata}>
       {ticket.customerid_account && <Typography variant="subtitle2">{ticket.customerid_account.name}</Typography>}
-      <Typography variant="subtitle1">
-        {ticket.primarycontactid && ticket.primarycontactid.fullname}
+      <Box className={styles.contact}>
+        {displayContact &&
+          (displayContactTooltip ? (
+            <Tooltip title={displayContactTooltip} aria-label={displayContactTooltip}>
+              <Typography variant="subtitle1">{displayContact.fullname}</Typography>
+            </Tooltip>
+          ) : (
+            <Typography variant="subtitle1">{displayContact.fullname}</Typography>
+          ))}
         <Tooltip className={styles.more} title={emailTerms.showDetails} aria-label={emailTerms.showDetails}>
           <IconButton onClick={openMorePopover}>{popoverIsOpen ? <ExpandLess /> : <ExpandMore />}</IconButton>
         </Tooltip>
@@ -101,19 +173,19 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
                   {email.senton && <EmailDetailLine label={emailTerms.sent} value={moment(email.senton).format("LLL")} />}
                 </>
               )}
-              {ticket.customerid_account && aeUser && (
+              {aeUser && (
                 <EmailDetailLine
                   label={emailTerms.accountExecutive}
                   value={aeUser.fullname ?? aeUser.domainname ?? emailTerms.noAccountUser}
                 />
               )}
-              {ticket.customerid_account && amUser && (
+              {amUser && (
                 <EmailDetailLine
                   label={emailTerms.accountManager}
                   value={amUser.fullname ?? amUser.domainname ?? emailTerms.noAccountUser}
                 />
               )}
-              {ticket.customerid_account && tsmUser && (
+              {tsmUser && (
                 <EmailDetailLine
                   label={emailTerms.territorySalesManager}
                   value={tsmUser.fullname ?? tsmUser.domainname ?? emailTerms.noAccountUser}
@@ -122,7 +194,7 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
             </>
           )}
         </Popover>
-      </Typography>
+      </Box>
     </div>
   );
 };

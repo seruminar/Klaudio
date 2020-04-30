@@ -60,7 +60,7 @@
   "account": {
     "csProjects": "Customer Success projects",
     "accountServices": "Account services",
-    "recentTickets": "Recent cases",
+    "recentTickets": "Other recent cases",
     "ticketEmails": "Case history",
     "ticketNotes": "Notes on case",
     "caseTags": "Case tags",
@@ -114,6 +114,16 @@
       "281600000": "Completed",
       "281600001": "In progress",
       "281600003": "Cancelled"
+    },
+    "contactPosition": {
+      "281600007": "Unknown",
+      "281600000": "Developer",
+      "281600001": "Marketer",
+      "281600002": "Content editor",
+      "281600003": "Frontend developer",
+      "281600004": "Backend developer",
+      "281600005": "System admin/IT",
+      "281600006": "Executive manager"
     }
   },
   "files": {

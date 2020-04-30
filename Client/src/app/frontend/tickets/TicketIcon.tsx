@@ -134,7 +134,7 @@ export const TicketIcon: FC<ITicketIconProps> = ({ ticket, className }) => {
       }
     }
 
-    return null;
+    return undefined;
   }, [ticket.prioritycode]);
 
   const supportLevel = useMemo(() => {
@@ -147,6 +147,7 @@ export const TicketIcon: FC<ITicketIconProps> = ({ ticket, className }) => {
     if (supportLevel) {
       return entityNames.supportLevel[supportLevel];
     }
+
     return ticketTerms.unknown;
   }, [ticket.dyn_issla, ticket.customerid_account]);
 

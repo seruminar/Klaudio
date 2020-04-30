@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { FC, useEffect, useMemo, useRef, useState } from 'react';
+import React, { FC, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
     createStyles,
@@ -38,8 +38,7 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     icon: {
       zIndex: 200
-    },
-    items: {}
+    }
   })
 );
 
@@ -66,7 +65,7 @@ export const ExpandableList: FC<IExpandableListProps> = ({ tooltip, showOverlay,
     return () => window.removeEventListener("resize", resizeWindow);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (itemsRef.current && itemsRef.current.scrollHeight <= theme.spacing(6)) {
       setShowExpand(false);
       setExpanded(true);
@@ -74,13 +73,13 @@ export const ExpandableList: FC<IExpandableListProps> = ({ tooltip, showOverlay,
       setShowExpand(true);
       setExpanded(false);
     }
-  }, [itemsRef, theme, windowWidth]);
+  }, [children, itemsRef, theme, windowWidth]);
 
   return (
     <div className={clsx(styles.root, !expanded && styles.collapsed, className)}>
       <div className={clsx(showOverlay && !expanded && styles.overlay)} onClick={_ => setExpanded(!expanded)} />
       <Grid container>
-        <Grid item sm ref={itemsRef} className={styles.items}>
+        <Grid item sm ref={itemsRef}>
           {children}
         </Grid>
         <Grid item className={styles.icon}>

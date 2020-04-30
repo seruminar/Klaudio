@@ -78,12 +78,22 @@ export const App = boundary(() => {
   const themeContext = { theme, toggleTheme: () => (theme === "light" ? setTheme("dark") : setTheme("light")) };
 
   useEffect(() => {
-    const [simpleCrmTicketNumber, simpleCrmEmailId] = window.location.hash.substr(1).split("|");
+    const anchor = window.location.hash.substr(1);
 
-    if (simpleCrmTicketNumber && simpleCrmEmailId) {
-      navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}/${simpleCrmEmailId}`);
-    } else if (simpleCrmTicketNumber) {
-      navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}`);
+    if (anchor.startsWith("id=")) {
+      const [, simpleCrmEmailId] = anchor.split("=");
+
+      if (simpleCrmEmailId) {
+        navigate(`${routes.base}${routes.byEmail}/${simpleCrmEmailId}`);
+      }
+    } else {
+      const [simpleCrmTicketNumber, simpleCrmEmailId] = anchor.split("|");
+
+      if (simpleCrmTicketNumber && simpleCrmEmailId) {
+        navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}/${simpleCrmEmailId}`);
+      } else if (simpleCrmTicketNumber) {
+        navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}`);
+      }
     }
   }, []);
 
