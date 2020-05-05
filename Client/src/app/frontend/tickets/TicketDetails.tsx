@@ -7,6 +7,7 @@ import {
     createStyles,
     Divider,
     IconButton,
+    Link,
     makeStyles,
     TextField,
     Theme,
@@ -24,17 +25,18 @@ import {
     Visibility
 } from '@material-ui/icons';
 import { Autocomplete } from '@material-ui/lab';
-import { Link, useMatch } from '@reach/router';
+import { Link as RouteLink, useMatch } from '@reach/router';
 
 import { experience } from '../../../appSettings.json';
-import { ICrmService } from '../../../services/CrmService';
+import { CrmEntity } from '../../../services/crmService/CrmEntity';
+import { ICrmService } from '../../../services/crmService/CrmService';
+import { ServiceStatus, ServiceType } from '../../../services/crmService/models/ICrmAccountService';
+import { ProductFamily } from '../../../services/crmService/models/ICrmCsProject';
+import { ICrmEmail } from '../../../services/crmService/models/ICrmEmail';
+import { ICrmTag } from '../../../services/crmService/models/ICrmTag';
+import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
+import { TicketStatus } from '../../../services/crmService/models/TicketStatus';
 import { useDependency } from '../../../services/dependencyContainer';
-import { ServiceStatus, ServiceType } from '../../../services/models/ICrmAccountService';
-import { ProductFamily } from '../../../services/models/ICrmCsProject';
-import { ICrmEmail } from '../../../services/models/ICrmEmail';
-import { ICrmTag } from '../../../services/models/ICrmTag';
-import { ICrmTicket } from '../../../services/models/ICrmTicket';
-import { TicketStatus } from '../../../services/models/TicketStatus';
 import { systemUser } from '../../../services/systemUser';
 import { account, entityNames } from '../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
@@ -205,7 +207,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
 
   useEffect(() => {
     if (rawTicketTags) {
-      setTicketTags(rawTicketTags.map(connection => ({ dyn_tagid: connection.connectionid, dyn_name: connection.name })));
+      setTicketTags(rawTicketTags.map(connection => ({ dyn_tagid: "", dyn_name: connection.name })));
     }
   }, [rawTicketTags]);
 
@@ -375,9 +377,20 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
                 accountService.ken_expireson && <DateFromNow icon={<HourglassEmpty />} date={accountService.ken_expireson} />
               }
               getAction={accountService => (
-                <IconButton edge="end" aria-label="delete" className={styles.emailItemButton}>
-                  <Visibility />
-                </IconButton>
+                <Link
+                  href={crmService
+                    .crmUrl(CrmEntity.AccountService)
+                    .id(accountService.ken_serviceid)
+                    .build()}
+                  underline="none"
+                  color="textPrimary"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <IconButton edge="end" aria-label="delete" className={styles.emailItemButton}>
+                    <Visibility />
+                  </IconButton>
+                </Link>
               )}
               classes={{
                 avatar: styles.emailItemAvatar
@@ -404,11 +417,11 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
               }
               getRight={recentTicket => recentTicket.modifiedon && <DateFromNow date={recentTicket.modifiedon} />}
               getAction={recentTicket => (
-                <Link to={`${routes.base}${routes.tickets}/${recentTicket.ticketnumber}`}>
+                <RouteLink to={`${routes.base}${routes.tickets}/${recentTicket.ticketnumber}`}>
                   <IconButton edge="end" aria-label="delete" className={styles.emailItemButton}>
                     <Visibility />
                   </IconButton>
-                </Link>
+                </RouteLink>
               )}
               classes={{
                 avatar: styles.emailItemAvatar
@@ -447,11 +460,11 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
                 </>
               )}
               getAction={ticketEmail => (
-                <Link to={`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${ticketEmail.activityid}`}>
+                <RouteLink to={`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${ticketEmail.activityid}`}>
                   <IconButton edge="end" aria-label="delete" className={styles.emailItemButton}>
                     <Visibility />
                   </IconButton>
-                </Link>
+                </RouteLink>
               )}
               classes={{
                 avatar: styles.emailItemAvatar
@@ -496,7 +509,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket }) => {
               options={allTags}
               filterSelectedOptions
               getOptionLabel={option => option.dyn_name}
-              getOptionSelected={(option, value) => option.dyn_tagid === value.dyn_tagid}
+              getOptionSelected={(option, value) => option.dyn_name === value.dyn_name}
               value={ticketTags}
               onChange={(_event: any, newValue: any) => {
                 setTicketTags(ticketTags => (newValue ? newValue : ticketTags));

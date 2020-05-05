@@ -1,6 +1,6 @@
 import { rootInjector } from 'typed-inject';
 
-import { CrmService, ICrmService } from './CrmService';
+import { CrmService, ICrmService } from './crmService/CrmService';
 
 const dependencies = rootInjector.provideClass(ICrmService, CrmService);
 

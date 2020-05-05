@@ -12,4 +12,5 @@ export type CrmEndpoint =
   | "incidents"
   | "templates"
   | "WhoAmI"
+  | "activitymimeattachments"
   | undefined;

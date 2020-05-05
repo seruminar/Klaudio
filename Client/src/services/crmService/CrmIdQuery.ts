@@ -14,8 +14,8 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
 
   private expandQuery: { [P in keyof T]?: string[] };
 
-  constructor(type: CrmEndpoint, id: Guid) {
-    super(type);
+  constructor(type: CrmEndpoint, cacheDuration: number, id: Guid) {
+    super(type, cacheDuration);
 
     this.id = id;
     this.selectFields = new Array<keyof T>();
@@ -35,7 +35,7 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
   }
 
   children<K extends keyof CrmChildMap>(childName: K) {
-    return new CrmChildQuery<CrmChildMap[K]>(this.type, this.id, childName);
+    return new CrmChildQuery<CrmChildMap[K]>(this.type, this.cacheDuration, this.id, childName);
   }
 
   protected getRequest(request: Wretcher): Wretcher {

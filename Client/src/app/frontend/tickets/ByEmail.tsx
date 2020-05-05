@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import useAsyncEffect from 'use-async-effect';
 
 import { Grid } from '@material-ui/core';
 import { navigate } from '@reach/router';
 
-import { ICrmService } from '../../../services/CrmService';
+import { ICrmService } from '../../../services/crmService/CrmService';
 import { useDependency } from '../../../services/dependencyContainer';
 import { useSubscription } from '../../../utilities/observables';
 import { RoutedFC } from '../../../utilities/routing';
@@ -26,9 +27,9 @@ export const ByEmail: RoutedFC<IByEmailProps> = ({ emailId }) => {
       .getObservable()
   )?.value[0];
 
-  useEffect(() => {
+  useAsyncEffect(async () => {
     if (ticket) {
-      navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${emailId}`);
+      await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${emailId}`);
     }
   }, [ticket, emailId]);
 

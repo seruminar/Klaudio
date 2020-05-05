@@ -1,13 +1,13 @@
 import React, { FC, MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react';
 
-import { IconButton, MenuItem, Popover, Tooltip } from '@material-ui/core';
+import { IconButton, Link, MenuItem, Popover, Tooltip } from '@material-ui/core';
 import { MoreVert } from '@material-ui/icons';
 
 interface IMenuProps {
   tooltip: string;
   icon?: ReactNode;
   className?: string;
-  options: ReactNode[];
+  options: { component: ReactNode; target?: string; onClick?: () => void }[];
 }
 
 export const Menu: FC<IMenuProps> = ({ tooltip, icon, className, options }) => {
@@ -18,10 +18,14 @@ export const Menu: FC<IMenuProps> = ({ tooltip, icon, className, options }) => {
     setPopoverEl(event.currentTarget);
   }, []);
 
-  const closeMenu = useCallback((event: MouseEvent<HTMLElement>) => {
-    event.stopPropagation();
-    setPopoverEl(null);
-  }, []);
+  const closeMenu = useCallback(
+    (onClick?: () => void) => (event: MouseEvent<HTMLElement>) => {
+      event.stopPropagation();
+      setPopoverEl(null);
+      onClick && onClick();
+    },
+    []
+  );
 
   const popoverIsOpen = useMemo(() => Boolean(popoverEl), [popoverEl]);
 
@@ -36,7 +40,7 @@ export const Menu: FC<IMenuProps> = ({ tooltip, icon, className, options }) => {
         keepMounted
         anchorEl={popoverEl}
         open={popoverIsOpen}
-        onClose={closeMenu}
+        onClose={closeMenu()}
         anchorOrigin={{
           vertical: "bottom",
           horizontal: "left"
@@ -47,8 +51,10 @@ export const Menu: FC<IMenuProps> = ({ tooltip, icon, className, options }) => {
         }}
       >
         {options.map((option, index) => (
-          <MenuItem onClick={closeMenu} key={index}>
-            {option}
+          <MenuItem onClick={closeMenu(option.onClick)} key={index}>
+            <Link href={option.target} underline="none" color="textPrimary" target="_blank" rel="noreferrer noopener">
+              {option.component}
+            </Link>
           </MenuItem>
         ))}
       </Popover>

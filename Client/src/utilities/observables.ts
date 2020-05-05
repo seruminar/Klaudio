@@ -29,8 +29,9 @@ export const useSubscriptionEffect = <T>(
     if (newObservable) {
       setObservable(newObservable);
     }
+
     // eslint-disable-next-line
-  }, [observable, getObservable, ...(deps || [])]);
+  }, [observable, ...(deps || [])]);
 
   return useSubscription(observable);
 };

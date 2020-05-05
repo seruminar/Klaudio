@@ -1,6 +1,6 @@
 import './app.scss';
 
-import React, { createContext, lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { createContext, lazy, Suspense, useMemo, useState } from 'react';
 import { boundary, useError } from 'react-boundary';
 import { Helmet } from 'react-helmet';
 
@@ -77,25 +77,25 @@ export const App = boundary(() => {
 
   const themeContext = { theme, toggleTheme: () => (theme === "light" ? setTheme("dark") : setTheme("light")) };
 
-  useEffect(() => {
+  (async () => {
     const anchor = window.location.hash.substr(1);
 
     if (anchor.startsWith("id=")) {
       const [, simpleCrmEmailId] = anchor.split("=");
 
       if (simpleCrmEmailId) {
-        navigate(`${routes.base}${routes.byEmail}/${simpleCrmEmailId}`);
+        await navigate(`${routes.base}${routes.byEmail}/${simpleCrmEmailId}`);
       }
     } else {
       const [simpleCrmTicketNumber, simpleCrmEmailId] = anchor.split("|");
 
       if (simpleCrmTicketNumber && simpleCrmEmailId) {
-        navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}/${simpleCrmEmailId}`);
+        await navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}/${simpleCrmEmailId}`);
       } else if (simpleCrmTicketNumber) {
-        navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}`);
+        await navigate(`${routes.base}${routes.tickets}/${simpleCrmTicketNumber}`);
       }
     }
-  }, []);
+  })();
 
   return (
     <ThemeContext.Provider value={themeContext}>

@@ -22,6 +22,7 @@
     "collapse": "Collapse"
   },
   "ticket": {
+    "case": "Case: ",
     "premium": "Premium",
     "unknown": "Unknown",
     "isSla": "Premium support"
@@ -124,6 +125,16 @@
       "281600004": "Backend developer",
       "281600005": "System admin/IT",
       "281600006": "Executive manager"
+    },
+    "emailStatus": {
+      "1": "Draft",
+      "2": "Completed",
+      "3": "Sent",
+      "4": "Received",
+      "5": "Canceled",
+      "6": "Pending send",
+      "7": "Sending",
+      "8": "Failed"
     }
   },
   "files": {

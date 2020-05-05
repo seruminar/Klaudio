@@ -77,7 +77,7 @@ export const PaneList: FC<IPaneListProps> = ({ tooltip, expanded, children }) =>
     <Grid item zeroMinWidth className={clsx(styles.pane, !paneOpen && styles.paneClosed)}>
       <div className={clsx(!paneOpen && styles.overlay)} onClick={() => setPaneOpen(!paneOpen)} />
       <div className={styles.paneHeader}>
-        {tooltip ? (
+        {tooltip && getLabel ? (
           <Tooltip title={getLabel} aria-label={getLabel}>
             <IconButton onClick={() => setPaneOpen(!paneOpen)}>{paneOpen ? <ChevronLeft /> : <ChevronRight />}</IconButton>
           </Tooltip>

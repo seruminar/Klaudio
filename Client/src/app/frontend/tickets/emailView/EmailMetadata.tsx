@@ -13,11 +13,11 @@ import {
 } from '@material-ui/core';
 import { ExpandLess, ExpandMore } from '@material-ui/icons';
 
-import { ICrmService } from '../../../../services/CrmService';
+import { ICrmService } from '../../../../services/crmService/CrmService';
+import { ContactPosition } from '../../../../services/crmService/models/ICrmContact';
+import { ICrmEmail } from '../../../../services/crmService/models/ICrmEmail';
+import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
 import { useDependency } from '../../../../services/dependencyContainer';
-import { ContactPosition } from '../../../../services/models/ICrmContact';
-import { ICrmEmail } from '../../../../services/models/ICrmEmail';
-import { ICrmTicket } from '../../../../services/models/ICrmTicket';
 import { email as emailTerms, entityNames } from '../../../../terms.en-us.json';
 import { useSubscriptionEffect } from '../../../../utilities/observables';
 import { Loading } from '../../../shared/Loading';

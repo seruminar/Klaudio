@@ -2,8 +2,8 @@ import React, { FC } from 'react';
 
 import { Typography } from '@material-ui/core';
 
-import { ICrmParty } from '../../../../services/models/ICrmParty';
-import { ParticipationType } from '../../../../services/models/ParticipationType';
+import { ICrmParty } from '../../../../services/crmService/models/ICrmParty';
+import { ParticipationType } from '../../../../services/crmService/models/ParticipationType';
 
 interface IEmailSenderLineProps {
   parties: ICrmParty[];

@@ -4,8 +4,11 @@ import { createStyles, Grid, ListItem, makeStyles, Theme, Typography } from '@ma
 import { Alarm, Cake, Edit } from '@material-ui/icons';
 import { navigate, useMatch } from '@reach/router';
 
-import { ICrmTicket } from '../../../services/models/ICrmTicket';
-import { ICrmUser } from '../../../services/models/ICrmUser';
+import { CrmEntity } from '../../../services/crmService/CrmEntity';
+import { ICrmService } from '../../../services/crmService/CrmService';
+import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
+import { ICrmUser } from '../../../services/crmService/models/ICrmUser';
+import { useDependency } from '../../../services/dependencyContainer';
 import { email as emailTerms } from '../../../terms.en-us.json';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
@@ -56,6 +59,8 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
 
   const context = useMatch(`${routes.base}${routes.tickets}/:ticketNumber/*emailId`);
 
+  const crmService = useDependency(ICrmService);
+
   const ticketIsSelected = useCallback(
     (ticket: ICrmTicket) => {
       return context?.ticketNumber === ticket.ticketnumber;
@@ -68,10 +73,10 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
   }, []);
 
   const onClick = useCallback(
-    (ticket: ICrmTicket) => () => {
+    (ticket: ICrmTicket) => async () => {
       scrollIntoView();
       if (!ticketIsSelected(ticket)) {
-        navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
+        await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
       }
     },
     [ticketIsSelected, scrollIntoView]
@@ -100,7 +105,20 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
           <Grid item sm>
             {owner && (
               <>
-                <Menu className={styles.menu} tooltip={emailTerms.more} options={[emailTerms.assignToMe, emailTerms.openInCrm]} />
+                <Menu
+                  className={styles.menu}
+                  tooltip={emailTerms.more}
+                  options={[
+                    { component: emailTerms.assignToMe },
+                    {
+                      component: emailTerms.openInCrm,
+                      target: crmService
+                        .crmUrl(CrmEntity.Ticket)
+                        .id(ticket.incidentid)
+                        .build()
+                    }
+                  ]}
+                />
                 <Typography variant="caption" className={styles.owner}>
                   {owner.fullname}
                 </Typography>
@@ -118,7 +136,7 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
           </Typography>
         </Grid>
         <Grid item>
-          {/* <Suspense fallback={<Loading />}>{ticketIsSelected(ticket) && <TicketDetails ticket={ticket} />}</Suspense> */}
+          <Suspense fallback={<Loading />}>{ticketIsSelected(ticket) && <TicketDetails ticket={ticket} />}</Suspense>
         </Grid>
       </Grid>
     </ListItem>

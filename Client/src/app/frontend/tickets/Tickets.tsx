@@ -35,13 +35,13 @@ import {
 import { Alarm, Edit, FilterList, FlashOn, Person, Search } from '@material-ui/icons';
 
 import { experience } from '../../../appSettings.json';
-import { CrmApiResponse } from '../../../services/CrmApiResponse';
-import { ICrmService } from '../../../services/CrmService';
+import { CrmApiResponse } from '../../../services/crmService/CrmApiResponse';
+import { ICrmService } from '../../../services/crmService/CrmService';
+import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
+import { TicketGroup } from '../../../services/crmService/models/TicketGroup';
+import { TicketPriority } from '../../../services/crmService/models/TicketPriority';
+import { TicketStatus } from '../../../services/crmService/models/TicketStatus';
 import { useDependency } from '../../../services/dependencyContainer';
-import { ICrmTicket } from '../../../services/models/ICrmTicket';
-import { TicketGroup } from '../../../services/models/TicketGroup';
-import { TicketPriority } from '../../../services/models/TicketPriority';
-import { TicketStatus } from '../../../services/models/TicketStatus';
 import { systemUser } from '../../../services/systemUser';
 import { entityNames, tickets as ticketsTerms } from '../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
@@ -92,7 +92,7 @@ const useStyles = makeStyles((theme: Theme) =>
       flex: 1
     },
     filterField: {
-      width: "100%",
+      width: "100% ",
       padding: theme.spacing(1, 2)
     },
     orderByRow: {
@@ -163,27 +163,29 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
     return filter;
   }, [ticketQueue, ticketPriority, ticketStatus, ticketOwner, ticketNumber, searchTicketNumberFilter]);
 
-  const tickets = useSubscriptionEffect((previousValue: CrmApiResponse<ICrmTicket[]> | undefined) =>
-    crmService
-      .tickets()
-      .select(
-        "title",
-        "ken_sladuedate",
-        "modifiedon",
-        "createdon",
-        "ticketnumber",
-        "dyn_issla",
-        "dyn_is2level",
-        "prioritycode",
-        "dyn_ticket_group",
-        "statuscode"
-      )
-      .filter(ticketsFilter)
-      .top(100)
-      .orderBy("modifiedon desc")
-      .expand("customerid_account", ["name", "ken_customernote", "ken_supportlevel"])
-      .expand("owninguser", ["fullname"])
-      .getObservable(previousValue)
+  const tickets = useSubscriptionEffect(
+    (previousValue: CrmApiResponse<ICrmTicket[]> | undefined) =>
+      crmService
+        .tickets()
+        .select(
+          "title",
+          "ken_sladuedate",
+          "modifiedon",
+          "createdon",
+          "ticketnumber",
+          "dyn_issla",
+          "dyn_is2level",
+          "prioritycode",
+          "dyn_ticket_group",
+          "statuscode"
+        )
+        .filter(ticketsFilter)
+        .top(100)
+        .orderBy("modifiedon desc")
+        .expand("customerid_account", ["name", "ken_customernote", "ken_supportlevel"])
+        .expand("owninguser", ["fullname"])
+        .getObservable(previousValue),
+    [ticketsFilter]
   )?.value;
 
   useEffect(() => {
@@ -241,31 +243,42 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
     if (tickets) {
       const order = orderByReverse ? "asc" : "desc";
 
+      const unassigned = (ticket: ICrmTicket) =>
+        ticket.owninguser?.systemuserid === systemUser.systemuserid ? (orderByReverse ? 1 : 3) : 2;
+
       switch (ticketOrderBy) {
         case "modified":
           return sortArray(tickets, {
-            by: "modifiedon",
-            order
+            by: ["unassigned", "modifiedon"],
+            order: [order, order],
+            computed: {
+              unassigned
+            }
           });
         case "due":
           return sortArray(tickets, {
-            by: "ken_sladuedate",
-            order
+            by: ["unassigned", "ken_sladuedate"],
+            order: [order, order],
+            computed: {
+              unassigned
+            }
           });
         case "owner":
           return sortArray(tickets, {
-            by: "name",
-            order,
+            by: ["unassigned", "name"],
+            order: [order, order],
             computed: {
+              unassigned,
               name: ticket =>
                 ticket.owninguser?.systemuserid === systemUser.systemuserid ? (orderByReverse ? "Zz" : "Aa") : ticket.owninguser?.fullname
             }
           });
         case "priority":
           return sortArray(tickets, {
-            by: "priority",
-            order,
+            by: ["unassigned", "priority"],
+            order: [order, order],
             computed: {
+              unassigned,
               priority: ticket => {
                 switch (ticket.prioritycode) {
                   case TicketPriority.FireFighting:
@@ -312,117 +325,112 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
           direction="column"
           justify="flex-start"
         >
-          {!(users && allTickets) && <Loading />}
-          {users && allTickets && (
-            <>
-              <Box className={styles.filterField}>
-                <TicketsFilterField
-                  options={entityNames.ticketGroup}
-                  label={ticketsTerms.queue}
-                  getCount={value =>
-                    allTickets
-                      .filter(ticket => ticket.dyn_ticket_group === parseInt(value))
-                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length
-                  }
-                  value={ticketQueue}
-                  setValue={value => setTicketQueue(value ? value : TicketGroup.Support.toString())}
-                />
-              </Box>
-              <Box className={styles.filterField}>
-                <TicketsFilterField
-                  options={entityNames.ticketPriority}
-                  label={ticketsTerms.priority}
-                  getCount={value =>
-                    allTickets
-                      .filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                      .filter(ticket => ticket.prioritycode === parseInt(value))
-                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length
-                  }
-                  value={ticketPriority}
-                  setValue={value => setTicketPriority(value)}
-                />
-              </Box>
-              <Box className={styles.filterField}>
-                <TicketsFilterField
-                  options={entityNames.ticketStatus}
-                  label={ticketsTerms.status}
-                  value={ticketStatus}
-                  setValue={value => setTicketStatus(value ? value : TicketStatus.Queue.toString())}
-                />
-              </Box>
-              <Box className={styles.filterField}>
-                <TicketsFilterField
-                  options={usersFilterOptions}
-                  label={ticketsTerms.owner}
-                  getCount={value =>
-                    allTickets
-                      .filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                      .filter(ticket => ticket.statuscode === parseInt(ticketStatus))
-                      .filter(ticket => ticket._ownerid_value === value).length
-                  }
-                  value={ticketOwner}
-                  setValue={value => setTicketOwner(value)}
-                />
-              </Box>
-              <Box className={styles.filterField}>
-                <FormGroup>
-                  <FormControl component="fieldset">
-                    <FormLabel component="legend">{ticketsTerms.orderBy}</FormLabel>
-                    <RadioGroup
-                      row
-                      className={styles.orderByRow}
-                      aria-label={ticketsTerms.orderBy}
-                      name={ticketsTerms.orderBy}
-                      value={ticketOrderBy}
-                      onChange={(event: ChangeEvent<HTMLInputElement>) => setTicketOrderBy(event.target.value as OrderBy)}
-                    >
-                      <FormControlLabel
-                        value="modified"
-                        control={<Radio color="primary" />}
-                        label={
-                          <Tooltip title={ticketsTerms.modified} aria-label={ticketsTerms.modified}>
-                            <Edit className={styles.orderByIcon} />
-                          </Tooltip>
-                        }
-                      />
-                      <FormControlLabel
-                        value="due"
-                        control={<Radio color="primary" />}
-                        label={
-                          <Tooltip title={ticketsTerms.due} aria-label={ticketsTerms.due}>
-                            <Alarm className={styles.orderByIcon} />
-                          </Tooltip>
-                        }
-                      />
-                      <FormControlLabel
-                        value="priority"
-                        control={<Radio color="primary" />}
-                        label={
-                          <Tooltip title={ticketsTerms.priority} aria-label={ticketsTerms.priority}>
-                            <FlashOn className={styles.orderByIcon} />
-                          </Tooltip>
-                        }
-                      />
-                      <FormControlLabel
-                        value="owner"
-                        control={<Radio color="primary" />}
-                        label={
-                          <Tooltip title={ticketsTerms.owner} aria-label={ticketsTerms.owner}>
-                            <Person className={styles.orderByIcon} />
-                          </Tooltip>
-                        }
-                      />
-                    </RadioGroup>
-                  </FormControl>
+          <Box className={styles.filterField}>
+            <TicketsFilterField
+              options={entityNames.ticketGroup}
+              label={ticketsTerms.queue}
+              getCount={value =>
+                allTickets
+                  ?.filter(ticket => ticket.dyn_ticket_group === parseInt(value))
+                  .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length
+              }
+              value={ticketQueue}
+              setValue={value => setTicketQueue(value ? value : TicketGroup.Support.toString())}
+            />
+          </Box>
+          <Box className={styles.filterField}>
+            <TicketsFilterField
+              options={entityNames.ticketPriority}
+              label={ticketsTerms.priority}
+              getCount={value =>
+                allTickets
+                  ?.filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
+                  .filter(ticket => ticket.prioritycode === parseInt(value))
+                  .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length
+              }
+              value={ticketPriority}
+              setValue={value => setTicketPriority(value)}
+            />
+          </Box>
+          <Box className={styles.filterField}>
+            <TicketsFilterField
+              options={entityNames.ticketStatus}
+              label={ticketsTerms.status}
+              value={ticketStatus}
+              setValue={value => setTicketStatus(value ? value : TicketStatus.Queue.toString())}
+            />
+          </Box>
+          <Box className={styles.filterField}>
+            <TicketsFilterField
+              options={usersFilterOptions}
+              label={ticketsTerms.owner}
+              getCount={value =>
+                allTickets
+                  ?.filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
+                  .filter(ticket => ticket.statuscode === parseInt(ticketStatus))
+                  .filter(ticket => ticket._ownerid_value === value).length
+              }
+              value={ticketOwner}
+              setValue={value => setTicketOwner(value)}
+            />
+          </Box>
+          <Box className={styles.filterField}>
+            <FormGroup>
+              <FormControl component="fieldset">
+                <FormLabel component="legend">{ticketsTerms.orderBy}</FormLabel>
+                <RadioGroup
+                  row
+                  className={styles.orderByRow}
+                  aria-label={ticketsTerms.orderBy}
+                  name={ticketsTerms.orderBy}
+                  value={ticketOrderBy}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => setTicketOrderBy(event.target.value as OrderBy)}
+                >
                   <FormControlLabel
-                    control={<Switch color="primary" checked={orderByReverse} onChange={() => setOrderByReverse(!orderByReverse)} />}
-                    label={ticketsTerms.orderByReverse}
+                    value="modified"
+                    control={<Radio color="primary" />}
+                    label={
+                      <Tooltip title={ticketsTerms.modified} aria-label={ticketsTerms.modified}>
+                        <Edit className={styles.orderByIcon} />
+                      </Tooltip>
+                    }
                   />
-                </FormGroup>
-              </Box>
-              <Box className={styles.fill} />
-            </>
-          )}
+                  <FormControlLabel
+                    value="due"
+                    control={<Radio color="primary" />}
+                    label={
+                      <Tooltip title={ticketsTerms.due} aria-label={ticketsTerms.due}>
+                        <Alarm className={styles.orderByIcon} />
+                      </Tooltip>
+                    }
+                  />
+                  <FormControlLabel
+                    value="priority"
+                    control={<Radio color="primary" />}
+                    label={
+                      <Tooltip title={ticketsTerms.priority} aria-label={ticketsTerms.priority}>
+                        <FlashOn className={styles.orderByIcon} />
+                      </Tooltip>
+                    }
+                  />
+                  <FormControlLabel
+                    value="owner"
+                    control={<Radio color="primary" />}
+                    label={
+                      <Tooltip title={ticketsTerms.owner} aria-label={ticketsTerms.owner}>
+                        <Person className={styles.orderByIcon} />
+                      </Tooltip>
+                    }
+                  />
+                </RadioGroup>
+              </FormControl>
+              <FormControlLabel
+                control={<Switch color="primary" checked={orderByReverse} onChange={() => setOrderByReverse(!orderByReverse)} />}
+                label={ticketsTerms.orderByReverse}
+              />
+            </FormGroup>
+          </Box>
+          <Box className={styles.fill} />
         </Grid>
         <Grid
           container

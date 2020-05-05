@@ -7,16 +7,15 @@ import {
     blue,
     deepOrange,
     green,
-    grey,
     indigo,
     orange,
     red,
     yellow
 } from '@material-ui/core/colors';
 
-import { ICrmTicket } from '../../../services/models/ICrmTicket';
-import { SupportLevel } from '../../../services/models/SupportLevel';
-import { TicketPriority } from '../../../services/models/TicketPriority';
+import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
+import { SupportLevel } from '../../../services/crmService/models/SupportLevel';
+import { TicketPriority } from '../../../services/crmService/models/TicketPriority';
 import { entityNames, ticket as ticketTerms } from '../../../terms.en-us.json';
 
 interface ITicketIconProps {
@@ -59,9 +58,7 @@ const useStyles = makeStyles((theme: Theme) =>
       background: blue["A400"]
     },
     unknown: {
-      background: `repeating-linear-gradient(135deg, ${red[600]} 0 ${theme.spacing(0.25)}px, ${grey[400]} ${theme.spacing(
-        0.25
-      )}px ${theme.spacing(0.75)}px)`
+      background: red[200]
     }
   })
 );
@@ -133,8 +130,6 @@ export const TicketIcon: FC<ITicketIconProps> = ({ ticket, className }) => {
           return entityNames.ticketPriority[priority];
       }
     }
-
-    return undefined;
   }, [ticket.prioritycode]);
 
   const supportLevel = useMemo(() => {
@@ -158,7 +153,7 @@ export const TicketIcon: FC<ITicketIconProps> = ({ ticket, className }) => {
     >
       <Avatar variant={ticket.dyn_is2level ? "rounded" : "circle"} className={clsx(ticketClass, className)}>
         {ticket.dyn_issla ? ticketTerms.premium[0] : ""}
-        {ticketPriority && ticketPriority[0]}
+        {ticketClass === styles.unknown ? "?" : ticketPriority && ticketPriority[0]}
       </Avatar>
     </Tooltip>
   );

@@ -22,11 +22,21 @@ const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
       overflow: "hidden",
-      position: "relative"
+      position: "relative",
+      maxHeight: theme.spacing(30),
+      transition: theme.transitions.create("max-height", {
+        easing: theme.transitions.easing.sharp,
+        duration: theme.transitions.duration.enteringScreen
+      })
+    },
+    container: {
+      height: theme.spacing(30)
     },
     collapsed: {
-      maxHeight: theme.spacing(6)
+      maxHeight: theme.spacing(8)
     },
+    scroll: { height: "100%" },
+    scrollExpanded: { overflow: "scroll" },
     overlay: {
       position: "absolute",
       width: "100%",
@@ -66,25 +76,23 @@ export const ExpandableList: FC<IExpandableListProps> = ({ tooltip, showOverlay,
   }, []);
 
   useLayoutEffect(() => {
-    if (itemsRef.current && itemsRef.current.scrollHeight <= theme.spacing(6)) {
+    if (itemsRef.current && itemsRef.current.scrollHeight <= theme.spacing(8)) {
       setShowExpand(false);
-      setExpanded(true);
     } else {
       setShowExpand(true);
-      setExpanded(false);
     }
   }, [children, itemsRef, theme, windowWidth]);
 
   return (
-    <div className={clsx(styles.root, !expanded && styles.collapsed, className)}>
-      <div className={clsx(showOverlay && !expanded && styles.overlay)} onClick={_ => setExpanded(!expanded)} />
-      <Grid container>
-        <Grid item sm ref={itemsRef}>
+    <div className={clsx(styles.root, !expanded && showExpand && styles.collapsed, className)}>
+      <div className={clsx(showOverlay && !expanded && showExpand && styles.overlay)} onClick={_ => setExpanded(!expanded)} />
+      <Grid container className={styles.container}>
+        <Grid item sm className={clsx(styles.scroll, !(!expanded && showExpand) && styles.scrollExpanded)} ref={itemsRef}>
           {children}
         </Grid>
         <Grid item className={styles.icon}>
           {showExpand &&
-            (tooltip ? (
+            (tooltip && getLabel ? (
               <Tooltip title={getLabel} aria-label={getLabel}>
                 <IconButton onClick={_ => setExpanded(!expanded)} aria-label={getLabel}>
                   {expanded ? <ExpandLess /> : <ExpandMore />}

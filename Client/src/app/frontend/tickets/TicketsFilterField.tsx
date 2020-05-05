@@ -6,7 +6,7 @@ import { Autocomplete } from '@material-ui/lab';
 interface ITicketsFilterFieldProps {
   options: { [key: string]: string };
   label: string;
-  getCount?: (value: string) => number;
+  getCount?: (value: string) => number | undefined;
   value: string | null;
   setValue: (value: string | null) => void;
 }
@@ -15,7 +15,7 @@ const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     itemCount: { flex: 1, textAlign: "right", fontSize: ".75rem" },
     input: {
-      minWidth: "100%"
+      minWidth: "100% !important"
     }
   })
 );
@@ -36,7 +36,7 @@ export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, labe
           return (
             <>
               <span>{options[option]}</span>
-              {count > 0 && <span className={styles.itemCount}>{count}</span>}
+              {count !== undefined && count > 0 && <span className={styles.itemCount}>{count}</span>}
             </>
           );
         })
@@ -48,7 +48,7 @@ export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, labe
 
         params.InputProps.endAdornment = (
           <span className={styles.itemCount}>
-            {count > 0 && count}
+            {count !== undefined && count > 0 && count}
             {params.InputProps.endAdornment}
           </span>
         );

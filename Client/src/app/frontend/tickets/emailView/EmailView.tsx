@@ -1,5 +1,7 @@
 import React, { createContext, FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import sortArray from 'sort-array';
+import useAsyncEffect from 'use-async-effect';
 
 import {
     Box,
@@ -15,15 +17,20 @@ import {
 import { AttachFile, FlashOn, PersonAdd, Reply, Send, Update } from '@material-ui/icons';
 import { navigate } from '@reach/router';
 
-import { ICrmService } from '../../../../services/CrmService';
+import { CrmEntity } from '../../../../services/crmService/CrmEntity';
+import { ICrmService } from '../../../../services/crmService/CrmService';
+import { ICrmAttachment } from '../../../../services/crmService/models/ICrmAttachment';
+import { EmailStatus } from '../../../../services/crmService/models/ICrmEmail';
+import { ParticipationType } from '../../../../services/crmService/models/ParticipationType';
+import { TicketPriority } from '../../../../services/crmService/models/TicketPriority';
+import { TicketStatus } from '../../../../services/crmService/models/TicketStatus';
 import { useDependency } from '../../../../services/dependencyContainer';
-import { ICrmAttachment } from '../../../../services/models/ICrmAttachment';
-import { EmailStatus } from '../../../../services/models/ICrmEmail';
-import { ParticipationType } from '../../../../services/models/ParticipationType';
-import { TicketPriority } from '../../../../services/models/TicketPriority';
-import { TicketStatus } from '../../../../services/models/TicketStatus';
 import { systemUser } from '../../../../services/systemUser';
-import { email as emailTerms, entityNames } from '../../../../terms.en-us.json';
+import {
+    email as emailTerms,
+    entityNames,
+    ticket as ticketTerms
+} from '../../../../terms.en-us.json';
 import { deleteFrom } from '../../../../utilities/arrays';
 import { getSizeText } from '../../../../utilities/numbers';
 import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
@@ -97,7 +104,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
 
   const [mode, setMode] = useState<EmailViewMode>("loading");
 
-  const addHtmlRef = useRef<(position: number, html: string) => void>(null);
+  const addHtmlRef = useRef<(html: string) => void>(null);
 
   const crmService = useDependency(ICrmService);
 
@@ -113,6 +120,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
         "dyn_is2level",
         "prioritycode",
         "statuscode",
+        "ticketnumber",
         "_ken_latestcontact_value"
       )
       .filter(`ticketnumber eq '${ticketNumber}'`)
@@ -133,26 +141,6 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
 
   const emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
 
-  const rawCaseAttachments = useSubscriptionEffect(() => {
-    if (ticketId) {
-      return crmService
-        .tickets()
-        .id(ticketId)
-        .children("Incident_Emails")
-        .select("activityid")
-        .filter(emailFilter)
-        .orderBy("createdon desc")
-        .expand("email_activity_mime_attachment", ["filename", "mimetype", "_objectid_value"])
-        .getObservable();
-    }
-  }, [ticketId])?.value;
-
-  useEffect(() => {
-    if (rawCaseAttachments) {
-      setCaseAttachments(rawCaseAttachments.flatMap(email => email.email_activity_mime_attachment));
-    }
-  }, [rawCaseAttachments]);
-
   const email = useSubscriptionEffect(() => {
     let contextEmailFilter = emailId ? `${emailFilter} and activityid eq ${emailId}` : emailFilter;
 
@@ -169,13 +157,13 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
     }
   }, [ticketId, emailId])?.value[0];
 
-  useEffect(() => {
-    if (email && emailId !== email.activityid && email._regardingobjectid_value === ticketId) {
-      navigate(`${routes.base}${routes.tickets}/${ticketNumber}/${email.activityid}`);
+  useAsyncEffect(async () => {
+    if (ticket?.ticketnumber && email?.activityid && ticket?.incidentid === email?._regardingobjectid_value) {
+      await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${email.activityid}`, { replace: true });
     }
-  }, [ticketId, ticketNumber, email, emailId]);
+  }, [ticket, email]);
 
-  const emailContent = useSubscriptionEffect(() => {
+  const rawEmailContent = useSubscriptionEffect(() => {
     if (email?.activityid) {
       return crmService
         .emailBody()
@@ -183,6 +171,78 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
         .getObservable();
     }
   }, [email]);
+
+  const rawCaseAttachments = useSubscriptionEffect(() => {
+    if (ticketId) {
+      return crmService
+        .tickets()
+        .id(ticketId)
+        .children("Incident_Emails")
+        .select("activityid")
+        .filter(emailFilter)
+        .orderBy("createdon desc")
+        .expand("email_activity_mime_attachment", ["filename", "mimetype", "_objectid_value", "attachmentcontentid"])
+        .getObservable();
+    }
+  }, [ticketId])?.value;
+
+  const emailAttachmentsData = useSubscriptionEffect(() => {
+    if (rawEmailContent) {
+      const cidsFilter = [...rawEmailContent.matchAll(/src="cid:(.*?)"/g)]
+        .map(match => `attachmentcontentid eq '{cid:${match[1]}}'`)
+        .join(" or ");
+
+      if (cidsFilter !== "") {
+        return crmService
+          .attachments()
+          .select("attachmentcontentid", "body")
+          .filter(cidsFilter)
+          .getObservable();
+      }
+    }
+  }, [rawEmailContent, crmService])?.value;
+
+  const emailContent = useMemo(() => {
+    if (rawEmailContent) {
+      let result = rawEmailContent;
+
+      if (emailAttachmentsData) {
+        for (const attachment of emailAttachmentsData) {
+          result = result.replace(
+            `src="${attachment.attachmentcontentid?.slice(1, -1)}"`,
+            `src="data:image/png;base64,${attachment.body}"`
+          );
+        }
+
+        return result;
+      }
+
+      return result.replace(/<style>[^<\/]*<\/style>/gi, "");
+    }
+  }, [rawEmailContent, emailAttachmentsData]);
+
+  useEffect(() => {
+    if (rawCaseAttachments) {
+      let caseAttachments = rawCaseAttachments.flatMap(email => email.email_activity_mime_attachment);
+
+      if (rawEmailContent) {
+        const matches = [...rawEmailContent.matchAll(/AttachmentId=([0-9a-f-]{36}).*?&amp;CRMWRPCToken/g)].map(match => match[1]);
+
+        caseAttachments = caseAttachments.filter(
+          caseAttachment => !matches.find(match => caseAttachment.activitymimeattachmentid === match)
+        );
+      }
+
+      if (emailAttachmentsData) {
+        caseAttachments = caseAttachments.filter(
+          caseAttachment =>
+            !emailAttachmentsData.find(attachment => caseAttachment.activitymimeattachmentid === attachment.activitymimeattachmentid)
+        );
+      }
+
+      setCaseAttachments(caseAttachments);
+    }
+  }, [rawEmailContent, rawCaseAttachments, emailAttachmentsData]);
 
   useEffect(() => {
     if (email?.torecipients) {
@@ -278,7 +338,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
       setMode("loading");
 
       if (mode === "view" && addHtmlRef.current) {
-        addHtmlRef.current(0, `${signature.replace("\n", "")}${emailTerms.signatureDivider}`);
+        addHtmlRef.current(`${signature.replace("\n", "")}${emailTerms.signatureDivider}`);
       }
 
       setMode("edit");
@@ -297,6 +357,35 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
     []
   );
 
+  const downloadAttachment = useCallback(
+    async (id: string) => {
+      crmService
+        .attachments()
+        .id(id)
+        .select("body", "filename")
+        .getObservable()
+        .subscribe(attachment => {
+          if (attachment && attachment.body && attachment.filename) {
+            const fakeAnchor = document.createElement("a");
+
+            const bodyBytes = Uint8Array.from([...atob(attachment.body)].map(char => char.charCodeAt(0)));
+
+            const url = URL.createObjectURL(new Blob([bodyBytes]));
+
+            fakeAnchor.href = url;
+            fakeAnchor.download = attachment.filename;
+
+            document.body.appendChild(fakeAnchor);
+
+            fakeAnchor.click();
+
+            URL.revokeObjectURL(url);
+          }
+        });
+    },
+    [crmService]
+  );
+
   const removeAttachment = useCallback(
     (attachment: ICrmAttachment) => {
       if (caseAttachments) {
@@ -313,8 +402,23 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
       {!(ticket && email && rawCaseAttachments && emailAttachments && otherAttachments) && <Loading />}
       {ticket && email && rawCaseAttachments && emailAttachments && otherAttachments && (
         <EmailContext.Provider value={emailContext}>
+          <Helmet>
+            <title>
+              {ticketTerms.case}
+              {ticket.title}
+            </title>
+          </Helmet>
           <Grid container className={styles.container} direction="column" justify="flex-start">
-            <Typography variant="h6">{ticket.title}</Typography>
+            <Grid container justify="space-between">
+              <Grid item>
+                <Typography variant="h6">{email.subject}</Typography>
+              </Grid>
+              <Grid item>
+                <Typography variant="caption" color="secondary">
+                  {email.statuscode && entityNames.emailStatus[email.statuscode]}
+                </Typography>
+              </Grid>
+            </Grid>
             <Grid container direction="row">
               <TicketIcon ticket={ticket} />
               <EmailMetadata ticket={ticket} email={email} toEmails={toEmails} ccEmails={ccEmails} bccEmails={bccEmails} />
@@ -349,27 +453,39 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
                 tooltip={emailTerms.setStatus}
                 icon={<Update />}
                 options={[
-                  entityNames.ticketStatus[TicketStatus.Queue],
-                  entityNames.ticketStatus[TicketStatus.Waiting],
-                  entityNames.ticketStatus[TicketStatus.Solved],
-                  entityNames.ticketStatus[TicketStatus.Closed]
+                  { component: entityNames.ticketStatus[TicketStatus.Queue] },
+                  { component: entityNames.ticketStatus[TicketStatus.Waiting] },
+                  { component: entityNames.ticketStatus[TicketStatus.Solved] },
+                  { component: entityNames.ticketStatus[TicketStatus.Closed] }
                 ]}
               />
               <Menu
                 tooltip={emailTerms.setPriority}
                 icon={<FlashOn />}
                 options={[
-                  entityNames.ticketPriority[TicketPriority.FireFighting],
-                  entityNames.ticketPriority[TicketPriority.HighPriority],
-                  entityNames.ticketPriority[TicketPriority.Normal],
-                  entityNames.ticketPriority[TicketPriority.WaitingForDevelopers],
-                  entityNames.ticketPriority[TicketPriority.LowPriority],
-                  entityNames.ticketPriority[TicketPriority.Processed]
+                  { component: entityNames.ticketPriority[TicketPriority.FireFighting] },
+                  { component: entityNames.ticketPriority[TicketPriority.HighPriority] },
+                  { component: entityNames.ticketPriority[TicketPriority.Normal] },
+                  { component: entityNames.ticketPriority[TicketPriority.WaitingForDevelopers] },
+                  { component: entityNames.ticketPriority[TicketPriority.LowPriority] },
+                  { component: entityNames.ticketPriority[TicketPriority.Processed] }
                 ]}
               />
               <Menu
                 tooltip={emailTerms.more}
-                options={[emailTerms.assignTo, emailTerms.handOver, emailTerms.submitFeedback, emailTerms.submitBug, emailTerms.openInCrm]}
+                options={[
+                  { component: emailTerms.assignTo },
+                  { component: emailTerms.handOver },
+                  { component: emailTerms.submitFeedback },
+                  { component: emailTerms.submitBug },
+                  {
+                    component: emailTerms.openInCrm,
+                    target: crmService
+                      .crmUrl(CrmEntity.Ticket)
+                      .id(ticket.incidentid)
+                      .build()
+                  }
+                ]}
               />
             </Grid>
             {mode === "edit" && (
@@ -380,49 +496,53 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
               </ExpandableList>
             )}
             <Grid>
-              <ExpandableList showOverlay tooltip={[emailTerms.more, emailTerms.less]}>
-                {mode === "edit" && (
-                  <Chip
-                    className={styles.attachment}
-                    clickable
-                    size="small"
-                    label={emailTerms.addAttachment}
-                    color="primary"
-                    icon={<AttachFile />}
-                  />
-                )}
-                {emailAttachments.map(attachment => {
-                  const [size, unit] = getSizeText(attachment.filesize);
-
-                  return (
+              {emailAttachments.length + otherAttachments.length > 0 && (
+                <ExpandableList showOverlay tooltip={[emailTerms.more, emailTerms.less]}>
+                  {mode === "edit" && (
                     <Chip
-                      key={attachment.activitymimeattachmentid}
-                      className={styles.attachment}
-                      clickable
-                      onDelete={mode === "edit" ? () => removeAttachment(attachment) : undefined}
-                      size="small"
-                      variant="default"
-                      icon={getFileIcon(attachment.mimetype ?? "")}
-                      label={`${attachment.filename} ${size} ${unit}`}
-                    />
-                  );
-                })}
-                {otherAttachments.map(attachment => {
-                  const [size, unit] = getSizeText(attachment.filesize);
-
-                  return (
-                    <Chip
-                      key={attachment.activitymimeattachmentid}
                       className={styles.attachment}
                       clickable
                       size="small"
-                      variant="outlined"
-                      icon={getFileIcon(attachment.mimetype ?? "")}
-                      label={`${attachment.filename} ${size} ${unit}`}
+                      label={emailTerms.addAttachment}
+                      color="primary"
+                      icon={<AttachFile />}
                     />
-                  );
-                })}
-              </ExpandableList>
+                  )}
+                  {emailAttachments.map(attachment => {
+                    const [size, unit] = getSizeText(attachment.filesize);
+
+                    return (
+                      <Chip
+                        key={attachment.activitymimeattachmentid}
+                        className={styles.attachment}
+                        clickable
+                        onClick={() => downloadAttachment(attachment.activitymimeattachmentid)}
+                        onDelete={mode === "edit" ? () => removeAttachment(attachment) : undefined}
+                        size="small"
+                        variant="default"
+                        icon={getFileIcon(attachment.mimetype ?? "")}
+                        label={`${attachment.filename} ${size} ${unit}`}
+                      />
+                    );
+                  })}
+                  {otherAttachments.map(attachment => {
+                    const [size, unit] = getSizeText(attachment.filesize);
+
+                    return (
+                      <Chip
+                        key={attachment.activitymimeattachmentid}
+                        className={styles.attachment}
+                        clickable
+                        onClick={() => downloadAttachment(attachment.activitymimeattachmentid)}
+                        size="small"
+                        variant="outlined"
+                        icon={getFileIcon(attachment.mimetype ?? "")}
+                        label={`${attachment.filename} ${size} ${unit}`}
+                      />
+                    );
+                  })}
+                </ExpandableList>
+              )}
             </Grid>
             <Grid className={styles.emailContent}>
               {mode === "loading" && <Loading overlay />}
