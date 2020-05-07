@@ -9,7 +9,7 @@ interface IEmailDetailLineProps {
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    root: { margin: theme.spacing(0.5) },
+    root: { margin: theme.spacing(0.5), maxWidth: theme.spacing(60) },
     partyChip: {
       margin: theme.spacing(0, 0.5)
     }

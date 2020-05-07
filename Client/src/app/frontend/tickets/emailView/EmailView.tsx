@@ -1,4 +1,4 @@
-import React, { createContext, FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import sortArray from 'sort-array';
 import useAsyncEffect from 'use-async-effect';
@@ -49,10 +49,12 @@ import { IEmailRecipient } from './IEmailRecipient';
 
 interface IEmailContext {
   mode: EmailViewMode;
+  setMode: (mode: EmailViewMode) => void;
 }
 
 export const EmailContext = createContext<IEmailContext>({
-  mode: "loading"
+  mode: "loading",
+  setMode: () => {}
 });
 
 interface IEmailViewProps {
@@ -60,7 +62,7 @@ interface IEmailViewProps {
   emailId: string | undefined;
 }
 
-export type EmailViewMode = "edit" | "view" | "viewDraft" | "loading";
+export type EmailViewMode = "newReply" | "edit" | "view" | "viewDraft" | "loading";
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -104,8 +106,6 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
 
   const [mode, setMode] = useState<EmailViewMode>("loading");
 
-  const addHtmlRef = useRef<(html: string) => void>(null);
-
   const crmService = useDependency(ICrmService);
 
   const ticket = useSubscription(
@@ -142,15 +142,13 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
   const emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
 
   const email = useSubscriptionEffect(() => {
-    let contextEmailFilter = emailId ? `${emailFilter} and activityid eq ${emailId}` : emailFilter;
-
     if (ticketId) {
       return crmService
         .tickets()
         .id(ticketId)
         .children("Incident_Emails")
         .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "torecipients", "_regardingobjectid_value")
-        .filter(contextEmailFilter)
+        .filter(emailId ? `${emailFilter} and activityid eq ${emailId}` : emailFilter)
         .top(1)
         .orderBy("createdon desc")
         .getObservable();
@@ -217,7 +215,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
         return result;
       }
 
-      return result.replace(/<style>[^<\/]*<\/style>/gi, "");
+      return result.replace(/<style>[^</]*<\/style>/gi, "");
     }
   }, [rawEmailContent, emailAttachmentsData]);
 
@@ -299,18 +297,6 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
     }
   }, [ticket, caseAttachments, email]);
 
-  const currentUser = useSubscription(crmService.currentUser().getObservable());
-
-  const signature = useSubscriptionEffect(() => {
-    if (currentUser?.UserId) {
-      return crmService
-        .users()
-        .id(currentUser.UserId)
-        .select("dyn_signature")
-        .getObservable();
-    }
-  }, [currentUser])?.dyn_signature;
-
   const emailAttachments = useMemo(() => {
     if (caseAttachments) {
       const emailAttachments = caseAttachments.filter(attachment => attachment._objectid_value === email?.activityid);
@@ -334,16 +320,8 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
   }, [caseAttachments, email]);
 
   const editEmail = useCallback(() => {
-    if (currentUser && signature) {
-      setMode("loading");
-
-      if (mode === "view" && addHtmlRef.current) {
-        addHtmlRef.current(`${signature.replace("\n", "")}${emailTerms.signatureDivider}`);
-      }
-
-      setMode("edit");
-    }
-  }, [mode, currentUser, signature]);
+    setMode("newReply");
+  }, []);
 
   const sendEmail = useCallback(
     (keepStatus: boolean) => async () => {
@@ -395,12 +373,12 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
     [caseAttachments]
   );
 
-  const emailContext = { mode };
+  const emailContext = { mode, setMode };
 
   return (
     <Box className={styles.root}>
-      {!(ticket && email && rawCaseAttachments && emailAttachments && otherAttachments) && <Loading />}
-      {ticket && email && rawCaseAttachments && emailAttachments && otherAttachments && (
+      {!(ticket && email && emailAttachments && otherAttachments) && <Loading />}
+      {ticket && email && emailAttachments && otherAttachments && (
         <EmailContext.Provider value={emailContext}>
           <Helmet>
             <title>
@@ -545,8 +523,8 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
               )}
             </Grid>
             <Grid className={styles.emailContent}>
-              {mode === "loading" && <Loading overlay />}
-              {emailContent && <EmailEditor value={emailContent} addHtmlRef={addHtmlRef} />}
+              {(mode === "loading" || mode === "newReply") && <Loading overlay />}
+              {emailContent && <EmailEditor value={emailContent} />}
             </Grid>
           </Grid>
         </EmailContext.Provider>

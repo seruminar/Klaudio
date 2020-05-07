@@ -1,5 +1,6 @@
 import { Wretcher } from 'wretch';
 
+import { cacheDurations } from './cacheDurations';
 import { CrmChildMap } from './CrmChildMap';
 import { CrmChildQuery } from './CrmChildQuery';
 import { CrmEndpoint } from './CrmEndpoint';
@@ -14,7 +15,7 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
 
   private expandQuery: { [P in keyof T]?: string[] };
 
-  constructor(type: CrmEndpoint, cacheDuration: number, id: Guid) {
+  constructor(type: CrmEndpoint, id: Guid, cacheDuration?: number) {
     super(type, cacheDuration);
 
     this.id = id;
@@ -35,7 +36,7 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
   }
 
   children<K extends keyof CrmChildMap>(childName: K) {
-    return new CrmChildQuery<CrmChildMap[K]>(this.type, this.cacheDuration, this.id, childName);
+    return new CrmChildQuery<CrmChildMap[K]>(this.type, cacheDurations[childName], this.id, childName);
   }
 
   protected getRequest(request: Wretcher): Wretcher {

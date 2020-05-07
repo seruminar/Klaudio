@@ -17,7 +17,7 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
 
   private expandQuery: { [P in keyof T]?: string[] };
 
-  constructor(type: CrmEndpoint, cacheDuration: number) {
+  constructor(type: CrmEndpoint, cacheDuration?: number) {
     super(type, cacheDuration);
 
     this.topQuery = -1;
@@ -28,7 +28,7 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
   }
 
   id(id: Guid) {
-    return new CrmIdQuery<T>(this.type, this.cacheDuration, id);
+    return new CrmIdQuery<T>(this.type, id, this.cacheDuration);
   }
 
   top(topQuery: number) {

@@ -1,5 +1,5 @@
 import moment from 'moment';
-import React, { FC, MouseEvent, useCallback, useContext, useMemo, useState } from 'react';
+import React, { FC, MouseEvent, useContext, useMemo, useState } from 'react';
 
 import {
     Box,
@@ -66,37 +66,37 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
         .select("contactid", "fullname", "ken_position", "ken_supportlevel", "ken_comment")
         .getObservable();
     }
-  }, [ticket]);
+  }, [ticket.primarycontactid, ticket._ken_latestcontact_value]);
 
   const aeUser = useSubscriptionEffect(() => {
-    if (ticket?.customerid_account?._dyn_accountexecutiveid_value) {
+    if (ticket.customerid_account?._dyn_accountexecutiveid_value) {
       return crmService
         .users()
         .id(ticket.customerid_account._dyn_accountexecutiveid_value)
         .select("fullname", "domainname")
         .getObservable();
     }
-  }, [ticket]);
+  }, [ticket.customerid_account]);
 
   const amUser = useSubscriptionEffect(() => {
-    if (ticket?.customerid_account?._dyn_accountmanagerid_value) {
+    if (ticket.customerid_account?._dyn_accountmanagerid_value) {
       return crmService
         .users()
         .id(ticket.customerid_account._dyn_accountmanagerid_value)
         .select("fullname", "domainname")
         .getObservable();
     }
-  }, [ticket]);
+  }, [ticket.customerid_account]);
 
   const tsmUser = useSubscriptionEffect(() => {
-    if (ticket?.customerid_account?._owninguser_value) {
+    if (ticket.customerid_account?._owninguser_value) {
       return crmService
         .users()
         .id(ticket.customerid_account._owninguser_value)
         .select("fullname", "domainname")
         .getObservable();
     }
-  }, [ticket]);
+  }, [ticket.customerid_account]);
 
   const displayContact = ticket.primarycontactid ?? latestContact;
 
@@ -118,14 +118,6 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
 
   const popoverIsOpen = useMemo(() => Boolean(popoverEl), [popoverEl]);
 
-  const openMorePopover = useCallback((event: MouseEvent<HTMLButtonElement>) => {
-    setPopoverEl(event.currentTarget);
-  }, []);
-
-  const closeMorePopover = useCallback(() => {
-    setPopoverEl(null);
-  }, []);
-
   return (
     <div className={styles.metadata}>
       {ticket.customerid_account && <Typography variant="subtitle2">{ticket.customerid_account.name}</Typography>}
@@ -139,13 +131,15 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
             <Typography variant="subtitle1">{displayContact.fullname}</Typography>
           ))}
         <Tooltip className={styles.more} title={emailTerms.showDetails} aria-label={emailTerms.showDetails}>
-          <IconButton onClick={openMorePopover}>{popoverIsOpen ? <ExpandLess /> : <ExpandMore />}</IconButton>
+          <IconButton onClick={(event: MouseEvent<HTMLButtonElement>) => setPopoverEl(event.currentTarget)}>
+            {popoverIsOpen ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
         </Tooltip>
         <Popover
           keepMounted
           anchorEl={popoverEl}
           open={popoverIsOpen}
-          onClose={closeMorePopover}
+          onClose={() => setPopoverEl(null)}
           anchorOrigin={{
             vertical: "bottom",
             horizontal: "left"

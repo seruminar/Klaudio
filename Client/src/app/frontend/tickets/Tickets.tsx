@@ -469,6 +469,8 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
           <TicketItem
             key={ticket.incidentid}
             ticket={ticket}
+            ticketNumber={ticketNumber}
+            emailId={emailId}
             owner={ticket.owninguser?.systemuserid === systemUser.systemuserid ? systemUser : ticket.owninguser}
           />
         ))}

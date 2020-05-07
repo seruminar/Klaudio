@@ -30,13 +30,13 @@ const useStyles = makeStyles((theme: Theme) =>
       })
     },
     container: {
-      height: theme.spacing(30)
+      maxHeight: theme.spacing(30)
     },
     collapsed: {
       maxHeight: theme.spacing(8)
     },
     scroll: { height: "100%" },
-    scrollExpanded: { overflow: "scroll" },
+    scrollExpanded: { overflowY: "scroll" },
     overlay: {
       position: "absolute",
       width: "100%",

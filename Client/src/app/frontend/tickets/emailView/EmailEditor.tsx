@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { FC, MutableRefObject, useContext, useEffect, useState } from 'react';
+import React, { FC, useContext, useEffect, useState } from 'react';
 import suneditor from 'suneditor';
 import SunEditor from 'suneditor/src/lib/core';
 import { ButtonListDefaults } from 'suneditor/src/options';
@@ -20,11 +20,14 @@ import {
 import { createStyles, makeStyles, Theme } from '@material-ui/core';
 import { grey } from '@material-ui/core/colors';
 
+import { ICrmService } from '../../../../services/crmService/CrmService';
+import { useDependency } from '../../../../services/dependencyContainer';
+import { email as emailTerms } from '../../../../terms.en-us.json';
+import { useSubscriptionEffect } from '../../../../utilities/observables';
 import { EmailContext } from './EmailView';
 
 interface IEmailEditor2Props {
   value: string;
-  addHtmlRef: MutableRefObject<((html: string) => void) | null>;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -106,22 +109,38 @@ const useStyles = makeStyles((theme: Theme) =>
 
 const editorId = "sunEditor";
 
-export const EmailEditor: FC<IEmailEditor2Props> = ({ value, addHtmlRef }) => {
+export const EmailEditor: FC<IEmailEditor2Props> = ({ value }) => {
   const styles = useStyles();
 
   const [editor, setEditor] = useState<SunEditor>();
 
-  const { mode } = useContext(EmailContext);
+  const { mode, setMode } = useContext(EmailContext);
+
+  const crmService = useDependency(ICrmService);
+
+  const currentUser = useSubscriptionEffect(() => {
+    if (mode === "newReply") {
+      return crmService.currentUser().getObservable();
+    }
+  }, [mode]);
+
+  const signature = useSubscriptionEffect(() => {
+    if (currentUser?.UserId) {
+      return crmService
+        .users()
+        .id(currentUser.UserId)
+        .select("dyn_signature")
+        .getObservable();
+    }
+  }, [currentUser])?.dyn_signature;
 
   useEffect(() => {
-    if (addHtmlRef) {
-      addHtmlRef.current = html => {
-        if (editor) {
-          editor.setContents(html + editor.getContents(true));
-        }
-      };
+    if (editor && signature && mode === "newReply") {
+      editor.setContents(`${signature.replace("\n", "")}${emailTerms.signatureDivider}` + editor.getContents(true));
+
+      setMode("edit");
     }
-  }, [addHtmlRef, editor]);
+  }, [editor, signature, mode, setMode]);
 
   useEffect(() => {
     if (!editor) {

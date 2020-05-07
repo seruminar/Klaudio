@@ -18,17 +18,20 @@ export class CacheItem<T> {
     this.observable = observable;
 
     if (duration > 0) {
-      this.refresh = setInterval(() => {
+      const timeout = () => {
         if (this.observable.observers.length > 0) {
           refresh(this.observable);
+          this.refresh = setTimeout(timeout, duration * 1000);
           return;
         }
 
         if (this.refresh) {
-          clearInterval(this.refresh);
+          clearTimeout(this.refresh);
           remove();
         }
-      }, duration * 1000);
+      };
+
+      this.refresh = setTimeout(timeout, duration * 1000);
     }
   }
 }

@@ -4,6 +4,7 @@ import wretch, { Wretcher } from 'wretch';
 import { context } from '../../appSettings.json';
 import { wait } from '../../utilities/promises';
 import { CacheItem, ICacheItem } from '../CacheItem';
+import { cacheDurations } from './cacheDurations';
 import { CrmApiResponse } from './CrmApiResponse';
 import { CrmEndpoint } from './CrmEndpoint';
 import { ICrmQueryBase } from './ICrmQueryBase';
@@ -14,9 +15,16 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
   protected type: CrmEndpoint;
   protected cacheDuration: number;
 
-  constructor(type: CrmEndpoint, cacheDuration: number) {
+  constructor(type: CrmEndpoint, cacheDuration?: number) {
     this.type = type;
-    this.cacheDuration = cacheDuration;
+
+    if (cacheDuration) {
+      this.cacheDuration = cacheDuration;
+    } else if (type !== undefined) {
+      this.cacheDuration = cacheDurations[type];
+    } else {
+      this.cacheDuration = 0;
+    }
   }
 
   protected abstract getRequest(request: Wretcher): Wretcher;

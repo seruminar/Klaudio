@@ -153,7 +153,7 @@ export const Frontend: RoutedFC = () => {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const context = useMatch(`${routes.base}/:route/*`);
+  const route = useMatch(`${routes.base}/:route/*`)?.route;
 
   const themeContext = useContext(ThemeContext);
 
@@ -179,7 +179,7 @@ export const Frontend: RoutedFC = () => {
           </div>
           <Divider />
           <List>
-            <ListItem button className={styles.menuItem} selected={context !== null && `/${context.route}` === routes.tickets}>
+            <ListItem button className={styles.menuItem} selected={route !== undefined && `/${route}` === routes.tickets}>
               <ListItemIcon>
                 <Link to={`${routes.base}${routes.tickets}`}>
                   <Mail color="action" />

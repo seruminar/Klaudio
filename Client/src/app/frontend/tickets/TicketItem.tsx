@@ -1,8 +1,8 @@
-import React, { FC, lazy, Suspense, useCallback, useEffect, useRef } from 'react';
+import React, { FC, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 
 import { createStyles, Grid, ListItem, makeStyles, Theme, Typography } from '@material-ui/core';
 import { Alarm, Cake, Edit } from '@material-ui/icons';
-import { navigate, useMatch } from '@reach/router';
+import { navigate } from '@reach/router';
 
 import { CrmEntity } from '../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../services/crmService/CrmService';
@@ -20,6 +20,8 @@ const TicketDetails = lazy(() => import("./TicketDetails").then(module => ({ def
 
 interface ITicketItemProps {
   ticket: ICrmTicket;
+  ticketNumber: string;
+  emailId: string | undefined;
   owner?: ICrmUser;
 }
 
@@ -52,21 +54,16 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
+export const TicketItem: FC<ITicketItemProps> = ({ ticket, ticketNumber, emailId, owner }) => {
   const styles = useStyles();
+
+  const [scrolled, setScrolled] = useState(false);
 
   const listItemRef = useRef<HTMLDivElement>(null);
 
-  const context = useMatch(`${routes.base}${routes.tickets}/:ticketNumber/*emailId`);
-
   const crmService = useDependency(ICrmService);
 
-  const ticketIsSelected = useCallback(
-    (ticket: ICrmTicket) => {
-      return context?.ticketNumber === ticket.ticketnumber;
-    },
-    [context]
-  );
+  const ticketIsSelected = useCallback((ticket: ICrmTicket) => ticketNumber === ticket.ticketnumber, [ticketNumber]);
 
   const scrollIntoView = useCallback(() => {
     listItemRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
@@ -75,6 +72,7 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
   const onClick = useCallback(
     (ticket: ICrmTicket) => async () => {
       scrollIntoView();
+      setScrolled(false);
       if (!ticketIsSelected(ticket)) {
         await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
       }
@@ -83,10 +81,11 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
   );
 
   useEffect(() => {
-    if (ticketIsSelected(ticket)) {
+    if (!scrolled && ticketIsSelected(ticket)) {
       scrollIntoView();
+      setScrolled(true);
     }
-  }, [scrollIntoView, ticket, ticketIsSelected]);
+  }, [scrolled, scrollIntoView, ticket, ticketIsSelected]);
 
   return (
     <ListItem
@@ -136,7 +135,9 @@ export const TicketItem: FC<ITicketItemProps> = ({ ticket, owner }) => {
           </Typography>
         </Grid>
         <Grid item>
-          <Suspense fallback={<Loading />}>{ticketIsSelected(ticket) && <TicketDetails ticket={ticket} />}</Suspense>
+          <Suspense fallback={<Loading />}>
+            {ticketIsSelected(ticket) && <TicketDetails ticket={ticket} ticketNumber={ticketNumber} emailId={emailId} />}
+          </Suspense>
         </Grid>
       </Grid>
     </ListItem>

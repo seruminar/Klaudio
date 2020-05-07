@@ -24,33 +24,33 @@ import { ICrmUser } from './models/ICrmUser';
 export const ICrmService = "ICrmService";
 
 export class CrmService {
-  currentUser: () => ICrmIdQueryBuilder<ICrmCurrentUser> = () => new CrmIdQuery<ICrmCurrentUser>("WhoAmI", 0, "");
+  currentUser: () => ICrmIdQueryBuilder<ICrmCurrentUser> = () => new CrmIdQuery<ICrmCurrentUser>("WhoAmI", "");
 
-  users: () => ICrmQueryBuilder<ICrmUser> = () => new CrmQuery<ICrmUser>("systemusers", 0);
+  users: () => ICrmQueryBuilder<ICrmUser> = () => new CrmQuery<ICrmUser>("systemusers");
 
-  contacts: () => ICrmQueryBuilder<ICrmContact> = () => new CrmQuery<ICrmContact>("contacts", 90);
+  contacts: () => ICrmQueryBuilder<ICrmContact> = () => new CrmQuery<ICrmContact>("contacts");
 
-  tags: () => ICrmQueryBuilder<ICrmTag> = () => new CrmQuery<ICrmTag>("dyn_tags", 0);
+  tags: () => ICrmQueryBuilder<ICrmTag> = () => new CrmQuery<ICrmTag>("dyn_tags");
 
-  emails: () => ICrmQueryBuilder<ICrmEmail> = () => new CrmQuery<ICrmEmail>("emails", 90);
+  emails: () => ICrmQueryBuilder<ICrmEmail> = () => new CrmQuery<ICrmEmail>("emails");
 
-  attachments: () => ICrmQueryBuilder<ICrmAttachment> = () => new CrmQuery<ICrmAttachment>("activitymimeattachments", 0);
+  attachments: () => ICrmQueryBuilder<ICrmAttachment> = () => new CrmQuery<ICrmAttachment>("activitymimeattachments");
 
   emailBody: () => ICrmEmailBodyQueryBuilder = () => new CrmEmailBodyQuery();
 
-  services: () => ICrmQueryBuilder<ICrmAccountService> = () => new CrmQuery<ICrmAccountService>("ken_services", 90);
+  services: () => ICrmQueryBuilder<ICrmAccountService> = () => new CrmQuery<ICrmAccountService>("ken_services");
 
-  csProjects: () => ICrmQueryBuilder<ICrmCsProject> = () => new CrmQuery<ICrmCsProject>("ken_customersuccessprojects", 90);
+  csProjects: () => ICrmQueryBuilder<ICrmCsProject> = () => new CrmQuery<ICrmCsProject>("ken_customersuccessprojects");
 
-  tickets: () => ICrmQueryBuilder<ICrmTicket> = () => new CrmQuery<ICrmTicket>("incidents", 30);
+  tickets: () => ICrmQueryBuilder<ICrmTicket> = () => new CrmQuery<ICrmTicket>("incidents");
 
-  connections: () => ICrmQueryBuilder<ICrmConnection> = () => new CrmQuery<ICrmConnection>("connections", 0);
+  connections: () => ICrmQueryBuilder<ICrmConnection> = () => new CrmQuery<ICrmConnection>("connections");
 
-  notes: () => ICrmQueryBuilder<ICrmNote> = () => new CrmQuery<ICrmNote>("annotations", 0);
+  notes: () => ICrmQueryBuilder<ICrmNote> = () => new CrmQuery<ICrmNote>("annotations");
 
-  cannedResponses: () => ICrmQueryBuilder<ICrmCannedResponse> = () => new CrmQuery<ICrmCannedResponse>("templates", 0);
+  cannedResponses: () => ICrmQueryBuilder<ICrmCannedResponse> = () => new CrmQuery<ICrmCannedResponse>("templates");
 
-  accounts: () => ICrmQueryBuilder<ICrmAccount> = () => new CrmQuery<ICrmAccount>("accounts", 0);
+  accounts: () => ICrmQueryBuilder<ICrmAccount> = () => new CrmQuery<ICrmAccount>("accounts");
 
   crmUrl: (type: CrmEntity) => ICrmUrlBuilder = (type: CrmEntity) => new CrmUrl(type);
 }

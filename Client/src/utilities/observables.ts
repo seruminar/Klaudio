@@ -19,7 +19,7 @@ export const useSubscription = <T>(behaviorSubject: BehaviorSubject<T>) =>
 
 export const useSubscriptionEffect = <T>(
   getObservable: (previous: T | undefined) => BehaviorSubject<T | undefined> | undefined,
-  deps?: DependencyList
+  deps: DependencyList
 ) => {
   const [observable, setObservable] = useState(new BehaviorSubject<T | undefined>(undefined));
 
@@ -31,7 +31,7 @@ export const useSubscriptionEffect = <T>(
     }
 
     // eslint-disable-next-line
-  }, [observable, ...(deps || [])]);
+  }, deps);
 
   return useSubscription(observable);
 };
