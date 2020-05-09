@@ -1,14 +1,5 @@
 import clsx from 'clsx';
-import React, {
-    ChangeEvent,
-    lazy,
-    Suspense,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState
-} from 'react';
+import React, { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Subject } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import sortArray from 'sort-array';
@@ -33,9 +24,9 @@ import {
     Tooltip
 } from '@material-ui/core';
 import { Alarm, Edit, FilterList, FlashOn, Person, Search } from '@material-ui/icons';
+import { useMatch } from '@reach/router';
 
 import { experience } from '../../../appSettings.json';
-import { CrmApiResponse } from '../../../services/crmService/CrmApiResponse';
 import { ICrmService } from '../../../services/crmService/CrmService';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
 import { TicketGroup } from '../../../services/crmService/models/TicketGroup';
@@ -46,22 +37,17 @@ import { systemUser } from '../../../services/systemUser';
 import { entityNames, tickets as ticketsTerms } from '../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
 import { RoutedFC } from '../../../utilities/routing';
+import { routes } from '../../routes';
 import { Loading } from '../../shared/Loading';
 import { PaneList } from '../../shared/PaneList';
 import { TicketItem } from './TicketItem';
 import { TicketsFilterField } from './TicketsFilterField';
-
-const EmailView = lazy(() => import("./emailView/EmailView").then(module => ({ default: module.EmailView })));
 
 type OrderBy = "modified" | "due" | "owner" | "priority";
 
 enum TicketsTabs {
   Filter,
   Search
-}
-
-interface ITicketsProps {
-  ticketPath: string;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -73,8 +59,11 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     emailView: {
       display: "flex",
-      height: "100%",
-      flex: 1
+      margin: theme.spacing(2),
+      flex: 1,
+      "& > div": {
+        width: "100%"
+      }
     },
     hidden: {
       display: "none"
@@ -109,7 +98,7 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
+export const Tickets: RoutedFC = ({ children }) => {
   const styles = useStyles();
 
   const [tab, setTab] = useState<TicketsTabs>(TicketsTabs.Filter);
@@ -125,6 +114,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
 
   const searchTicketNumberStream = useRef(new Subject<string>());
 
+  const ticketPath = useMatch(`${routes.base}${routes.tickets}/*ticketPath`)?.ticketPath;
   const [ticketNumber, emailId] = (ticketPath ?? "").split("/");
 
   const crmService = useDependency(ICrmService);
@@ -137,7 +127,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
       .top(100)
       .orderBy("modifiedon desc")
       .getObservable()
-  )?.value;
+  );
 
   const ticketsFilter = useMemo(() => {
     let filter = `dyn_ticket_group eq ${ticketQueue}`;
@@ -164,7 +154,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
   }, [ticketQueue, ticketPriority, ticketStatus, ticketOwner, ticketNumber, searchTicketNumberFilter]);
 
   const tickets = useSubscriptionEffect(
-    (previousValue: CrmApiResponse<ICrmTicket[]> | undefined) =>
+    (previousValue: ICrmTicket[] | undefined) =>
       crmService
         .tickets()
         .select(
@@ -186,7 +176,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
         .expand("owninguser", ["fullname"])
         .getObservable(previousValue),
     [ticketsFilter]
-  )?.value;
+  );
 
   useEffect(() => {
     if (tickets) {
@@ -216,7 +206,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
         .orderBy("fullname")
         .getObservable();
     }
-  }, [usersFilter])?.value;
+  }, [usersFilter]);
 
   const usersFilterOptions = useMemo(() => {
     let options: { [key: string]: string } = {};
@@ -476,7 +466,7 @@ export const Tickets: RoutedFC<ITicketsProps> = ({ ticketPath }) => {
         ))}
       </PaneList>
       <Grid item zeroMinWidth className={styles.emailView} xs={"auto"}>
-        <Suspense fallback={<Loading />}>{ticketNumber && <EmailView ticketNumber={ticketNumber} emailId={emailId} />}</Suspense>
+        {ticketNumber && children}
       </Grid>
     </Grid>
   );

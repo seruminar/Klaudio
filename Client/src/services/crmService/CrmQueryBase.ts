@@ -5,7 +5,6 @@ import { context } from '../../appSettings.json';
 import { wait } from '../../utilities/promises';
 import { CacheItem, ICacheItem } from '../CacheItem';
 import { cacheDurations } from './cacheDurations';
-import { CrmApiResponse } from './CrmApiResponse';
 import { CrmEndpoint } from './CrmEndpoint';
 import { ICrmQueryBase } from './ICrmQueryBase';
 
@@ -29,7 +28,7 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
 
   protected abstract getRequest(request: Wretcher): Wretcher;
 
-  getObservable(previousValue: CrmApiResponse<T> | undefined): BehaviorSubject<CrmApiResponse<T> | undefined> {
+  getObservable(previousValue: T | undefined): BehaviorSubject<T | undefined> {
     const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}`));
 
     const fullUrl = request._url;
@@ -37,13 +36,12 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
     let cacheItem = observablesCache[fullUrl];
 
     if (cacheItem) {
-      return cacheItem.observable as BehaviorSubject<CrmApiResponse<T> | undefined>;
+      return cacheItem.observable as BehaviorSubject<T | undefined>;
     }
 
-    const newObservable = new BehaviorSubject<CrmApiResponse<T> | undefined>(previousValue);
+    const newObservable = new BehaviorSubject<T | undefined>(previousValue);
 
-    const getResponse = (observable: BehaviorSubject<CrmApiResponse<T> | undefined>) =>
-      this.getResponse(request).then(data => observable.next(data));
+    const getResponse = (observable: BehaviorSubject<T | undefined>) => this.getResponse(request).then(data => observable.next(data));
 
     observablesCache[fullUrl] = new CacheItem(newObservable, this.cacheDuration, getResponse, () => delete observablesCache[fullUrl]);
 
@@ -64,11 +62,11 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
       const item = TEMP_responses.default.find(item => item.url === request._url);
 
       if (item) {
-        if (this.type === undefined) {
-          return (item.value as unknown) as CrmApiResponse<T>;
+        if (item.value) {
+          return (item.value as unknown) as T;
         }
 
-        return (item as unknown) as CrmApiResponse<T>;
+        return (item as unknown) as T;
       }
 
       throw new Error(`DEV: call to get new response: getData("${request._url}")`);
@@ -77,7 +75,5 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
     return await this.sendRequest(request);
   }
 
-  protected async sendRequest(request: Wretcher) {
-    return await request.get().json<CrmApiResponse<T>>();
-  }
+  protected abstract async sendRequest(request: Wretcher): Promise<T>;
 }

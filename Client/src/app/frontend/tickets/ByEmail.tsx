@@ -25,7 +25,7 @@ export const ByEmail: RoutedFC<IByEmailProps> = ({ emailId }) => {
       .filter(`Incident_Emails/any(e:e/activityid eq ${emailId})`)
       .top(1)
       .getObservable()
-  )?.value[0];
+  )?.[0];
 
   useAsyncEffect(async () => {
     if (ticket) {

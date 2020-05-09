@@ -60,4 +60,8 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
 
     return request;
   }
+
+  async sendRequest(request: Wretcher) {
+    return await request.get().json<T>();
+  }
 }

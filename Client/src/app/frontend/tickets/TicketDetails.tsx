@@ -125,7 +125,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
           .orderBy("createdon desc")
           .getObservable();
       }
-    }, [ticket.customerid_account])?.value;
+    }, [ticket.customerid_account]);
 
     const accountServices = useSubscriptionEffect(() => {
       if (ticket.customerid_account) {
@@ -136,7 +136,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
           .orderBy("ken_expireson desc")
           .getObservable();
       }
-    }, [ticket.customerid_account])?.value;
+    }, [ticket.customerid_account]);
 
     const recentTicketsDate = useMemo(() => {
       if (process.env.NODE_ENV === "development") {
@@ -161,9 +161,8 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
           .expand("customerid_account", ["ken_supportlevel"])
           .getObservable();
       }
-    }, [ticket.customerid_account, ticket.incidentid, recentTicketsDate])?.value;
+    }, [ticket.customerid_account, ticket.incidentid, recentTicketsDate]);
 
-    // const ticketEmails: ICrmEmail[] = [];
     const ticketEmails = useSubscription(
       crmService
         .tickets()
@@ -183,7 +182,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
         .filter(`sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`)
         .orderBy("createdon desc")
         .getObservable()
-    )?.value;
+    );
 
     const ticketNotes = useSubscription(
       crmService
@@ -194,7 +193,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
         .expand("modifiedby", ["fullname"])
         .orderBy("modifiedon desc")
         .getObservable()
-    )?.value;
+    );
 
     const rawTicketTags = useSubscription(
       crmService
@@ -204,7 +203,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
         .select("name")
         .orderBy("name desc")
         .getObservable()
-    )?.value;
+    );
 
     useEffect(() => {
       if (rawTicketTags) {
@@ -219,7 +218,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
         .filter(`statuscode eq 1 and ken_taggroup eq 281600002`)
         .orderBy("dyn_name")
         .getObservable()
-    )?.value;
+    );
 
     const ticketEmailIsSelected = useCallback(
       (ticketEmail: ICrmEmail) => {
@@ -524,5 +523,5 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
       </>
     );
   },
-  (previous, next) => previous.ticket.modifiedon === next.ticket.modifiedon
+  (previous, next) => previous.ticket.modifiedon === next.ticket.modifiedon && previous.emailId === next.emailId
 );

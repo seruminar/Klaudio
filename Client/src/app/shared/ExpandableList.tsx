@@ -35,7 +35,7 @@ const useStyles = makeStyles((theme: Theme) =>
     collapsed: {
       maxHeight: theme.spacing(8)
     },
-    scroll: { height: "100%" },
+    scroll: { maxHeight: "100%" },
     scrollExpanded: { overflowY: "scroll" },
     overlay: {
       position: "absolute",
@@ -86,7 +86,7 @@ export const ExpandableList: FC<IExpandableListProps> = ({ tooltip, showOverlay,
   return (
     <div className={clsx(styles.root, !expanded && showExpand && styles.collapsed, className)}>
       <div className={clsx(showOverlay && !expanded && showExpand && styles.overlay)} onClick={_ => setExpanded(!expanded)} />
-      <Grid container className={styles.container}>
+      <Grid container className={styles.container} wrap="nowrap">
         <Grid item sm className={clsx(styles.scroll, !(!expanded && showExpand) && styles.scrollExpanded)} ref={itemsRef}>
           {children}
         </Grid>

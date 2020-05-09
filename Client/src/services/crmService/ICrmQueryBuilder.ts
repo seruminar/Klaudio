@@ -2,7 +2,7 @@ import { ICrmIdQueryBuilder } from './ICrmIdQueryBuilder';
 import { ICrmQueryBase } from './ICrmQueryBase';
 import { ICrmEntity } from './models/ICrmEntity';
 
-export interface ICrmQueryBuilder<T extends ICrmEntity> extends ICrmQueryBase<T[] | undefined> {
+export interface ICrmQueryBuilder<T extends ICrmEntity> extends ICrmQueryBase<T[]> {
   id: (id: Guid) => ICrmIdQueryBuilder<T>;
   top: (topQuery: number) => ICrmQueryBuilder<T>;
   select: (...fields: (keyof T)[]) => ICrmQueryBuilder<T>;

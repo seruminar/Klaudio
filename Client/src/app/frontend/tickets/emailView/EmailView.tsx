@@ -1,10 +1,10 @@
-import React, { createContext, FC, useCallback, useEffect, useMemo, useState } from 'react';
+import moment from 'moment';
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import { BehaviorSubject } from 'rxjs';
 import sortArray from 'sort-array';
-import useAsyncEffect from 'use-async-effect';
 
 import {
-    Box,
     Chip,
     createStyles,
     Grid,
@@ -15,12 +15,12 @@ import {
     Typography
 } from '@material-ui/core';
 import { AttachFile, FlashOn, PersonAdd, Reply, Send, Update } from '@material-ui/icons';
-import { navigate } from '@reach/router';
 
 import { CrmEntity } from '../../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../../services/crmService/CrmService';
 import { ICrmAttachment } from '../../../../services/crmService/models/ICrmAttachment';
 import { EmailStatus } from '../../../../services/crmService/models/ICrmEmail';
+import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
 import { ParticipationType } from '../../../../services/crmService/models/ParticipationType';
 import { TicketPriority } from '../../../../services/crmService/models/TicketPriority';
 import { TicketStatus } from '../../../../services/crmService/models/TicketStatus';
@@ -33,9 +33,9 @@ import {
 } from '../../../../terms.en-us.json';
 import { deleteFrom } from '../../../../utilities/arrays';
 import { getSizeText } from '../../../../utilities/numbers';
-import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
+import { useSubscriptionEffect } from '../../../../utilities/observables';
 import { wait } from '../../../../utilities/promises';
-import { routes } from '../../../routes';
+import { RoutedFC } from '../../../../utilities/routing';
 import { ExpandableList } from '../../../shared/ExpandableList';
 import { Loading } from '../../../shared/Loading';
 import { Menu } from '../../../shared/Menu';
@@ -58,20 +58,14 @@ export const EmailContext = createContext<IEmailContext>({
 });
 
 interface IEmailViewProps {
-  ticketNumber: string;
-  emailId: string | undefined;
+  ticket: ICrmTicket;
+  emailId: string;
 }
 
 export type EmailViewMode = "newReply" | "edit" | "view" | "viewDraft" | "loading";
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    root: {
-      flex: 1,
-      display: "flex",
-      margin: theme.spacing(2),
-      minWidth: 0
-    },
     emailContent: {
       minHeight: 0,
       flex: 1,
@@ -80,7 +74,6 @@ const useStyles = makeStyles((theme: Theme) =>
       display: "flex",
       position: "relative"
     },
-
     container: {
       flex: 1
     },
@@ -96,7 +89,7 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
+export const EmailView: RoutedFC<IEmailViewProps> = ({ ticket, emailId }) => {
   const styles = useStyles();
 
   const [caseAttachments, setCaseAttachments] = useState<ICrmAttachment[]>();
@@ -108,58 +101,23 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
 
   const crmService = useDependency(ICrmService);
 
-  const ticket = useSubscription(
-    crmService
-      .tickets()
-      .select(
-        "title",
-        "ken_sladuedate",
-        "modifiedon",
-        "_ownerid_value",
-        "dyn_issla",
-        "dyn_is2level",
-        "prioritycode",
-        "statuscode",
-        "ticketnumber",
-        "_ken_latestcontact_value"
-      )
-      .filter(`ticketnumber eq '${ticketNumber}'`)
-      .top(1)
-      .expand("customerid_account", [
-        "name",
-        "ken_customernote",
-        "ken_supportlevel",
-        "_dyn_accountexecutiveid_value",
-        "_dyn_accountmanagerid_value",
-        "_owninguser_value"
-      ])
-      .expand("primarycontactid", ["contactid", "fullname", "ken_position", "ken_supportlevel", "ken_comment"])
-      .getObservable()
-  )?.value[0];
-
   const ticketId = ticket?.incidentid;
 
   const emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
 
   const email = useSubscriptionEffect(() => {
-    if (ticketId) {
+    if (ticketId && emailId) {
       return crmService
         .tickets()
         .id(ticketId)
         .children("Incident_Emails")
-        .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "torecipients", "_regardingobjectid_value")
-        .filter(emailId ? `${emailFilter} and activityid eq ${emailId}` : emailFilter)
+        .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "torecipients")
+        .filter(`${emailFilter} and activityid eq ${emailId}`)
         .top(1)
         .orderBy("createdon desc")
         .getObservable();
     }
-  }, [ticketId, emailId])?.value[0];
-
-  useAsyncEffect(async () => {
-    if (ticket?.ticketnumber && email?.activityid && ticket?.incidentid === email?._regardingobjectid_value) {
-      await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${email.activityid}`, { replace: true });
-    }
-  }, [ticket, email]);
+  }, [ticketId, emailId])?.[0];
 
   const rawEmailContent = useSubscriptionEffect(() => {
     if (email?.activityid) {
@@ -182,7 +140,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
         .expand("email_activity_mime_attachment", ["filename", "mimetype", "_objectid_value", "attachmentcontentid"])
         .getObservable();
     }
-  }, [ticketId])?.value;
+  }, [ticketId]);
 
   const emailAttachmentsData = useSubscriptionEffect(() => {
     if (rawEmailContent) {
@@ -197,50 +155,53 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
           .filter(cidsFilter)
           .getObservable();
       }
+
+      return new BehaviorSubject<ICrmAttachment[] | undefined>([]);
     }
-  }, [rawEmailContent, crmService])?.value;
+  }, [rawEmailContent, crmService]);
 
   const emailContent = useMemo(() => {
-    if (rawEmailContent) {
+    if (rawEmailContent && emailAttachmentsData) {
       let result = rawEmailContent;
 
-      if (emailAttachmentsData) {
-        for (const attachment of emailAttachmentsData) {
-          result = result.replace(
-            `src="${attachment.attachmentcontentid?.slice(1, -1)}"`,
-            `src="data:image/png;base64,${attachment.body}"`
-          );
-        }
-
-        return result;
+      for (const attachment of emailAttachmentsData) {
+        result = result.replace(`src="${attachment.attachmentcontentid?.slice(1, -1)}"`, `src="data:image/png;base64,${attachment.body}"`);
       }
 
-      return result.replace(/<style>[^</]*<\/style>/gi, "");
+      return result.replace(/<style[^</]*<\/style>/gi, "");
     }
   }, [rawEmailContent, emailAttachmentsData]);
 
   useEffect(() => {
-    if (rawCaseAttachments) {
-      let caseAttachments = rawCaseAttachments.flatMap(email => email.email_activity_mime_attachment);
+    if (rawEmailContent && rawCaseAttachments && emailAttachmentsData) {
+      const matches = [...rawEmailContent.matchAll(/AttachmentId=([0-9a-f-]{36}).*?&amp;CRMWRPCToken/g)].map(match => match[1]);
 
-      if (rawEmailContent) {
-        const matches = [...rawEmailContent.matchAll(/AttachmentId=([0-9a-f-]{36}).*?&amp;CRMWRPCToken/g)].map(match => match[1]);
-
-        caseAttachments = caseAttachments.filter(
-          caseAttachment => !matches.find(match => caseAttachment.activitymimeattachmentid === match)
-        );
-      }
-
-      if (emailAttachmentsData) {
-        caseAttachments = caseAttachments.filter(
+      let caseAttachments = rawCaseAttachments
+        .flatMap(email => email.email_activity_mime_attachment)
+        .filter(caseAttachment => !matches.find(match => caseAttachment.activitymimeattachmentid === match))
+        .filter(
           caseAttachment =>
             !emailAttachmentsData.find(attachment => caseAttachment.activitymimeattachmentid === attachment.activitymimeattachmentid)
         );
-      }
 
       setCaseAttachments(caseAttachments);
     }
   }, [rawEmailContent, rawCaseAttachments, emailAttachmentsData]);
+
+  useEffect(() => {
+    if (ticket && email && caseAttachments) {
+      switch (email.statuscode) {
+        case EmailStatus.Draft:
+          setMode("viewDraft");
+          break;
+        default:
+          setMode("view");
+          break;
+      }
+    } else {
+      setMode("loading");
+    }
+  }, [ticket, email, caseAttachments]);
 
   useEffect(() => {
     if (email?.torecipients) {
@@ -250,14 +211,6 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
         .map(recipient => ({ email: recipient }));
 
       setToEmails(toEmails);
-    }
-
-    if (email?.statuscode) {
-      switch (email.statuscode) {
-        case EmailStatus.Draft:
-          setMode("viewDraft");
-          break;
-      }
     }
   }, [email]);
 
@@ -271,7 +224,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
         .expand("partyid_contact", ["fullname"])
         .getObservable();
     }
-  }, [email])?.value;
+  }, [email]);
 
   useEffect(() => {
     if (parties) {
@@ -289,17 +242,9 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
     }
   }, [parties]);
 
-  useEffect(() => {
-    if (!(ticket && caseAttachments && email)) {
-      setMode("loading");
-    } else {
-      setMode("view");
-    }
-  }, [ticket, caseAttachments, email]);
-
   const emailAttachments = useMemo(() => {
-    if (caseAttachments) {
-      const emailAttachments = caseAttachments.filter(attachment => attachment._objectid_value === email?.activityid);
+    if (caseAttachments && email) {
+      const emailAttachments = caseAttachments.filter(attachment => attachment._objectid_value === email.activityid);
 
       return sortArray(emailAttachments, {
         by: "filesize",
@@ -309,8 +254,8 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
   }, [caseAttachments, email]);
 
   const otherAttachments = useMemo(() => {
-    if (caseAttachments) {
-      const emailAttachments = caseAttachments.filter(attachment => attachment._objectid_value !== email?.activityid);
+    if (caseAttachments && email) {
+      const emailAttachments = caseAttachments.filter(attachment => attachment._objectid_value !== email.activityid);
 
       return sortArray(emailAttachments, {
         by: "filesize",
@@ -376,7 +321,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
   const emailContext = { mode, setMode };
 
   return (
-    <Box className={styles.root}>
+    <>
       {!(ticket && email && emailAttachments && otherAttachments) && <Loading />}
       {ticket && email && emailAttachments && otherAttachments && (
         <EmailContext.Provider value={emailContext}>
@@ -388,13 +333,15 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
           </Helmet>
           <Grid container className={styles.container} direction="column" justify="flex-start">
             <Grid container justify="space-between">
-              <Grid item>
+              <Grid item className={styles.container}>
                 <Typography variant="h6">{email.subject}</Typography>
               </Grid>
               <Grid item>
-                <Typography variant="caption" color="secondary">
-                  {email.statuscode && entityNames.emailStatus[email.statuscode]}
-                </Typography>
+                <Chip
+                  color="secondary"
+                  label={`${email.statuscode && entityNames.emailStatus[email.statuscode]}
+                    ${moment(email.modifiedon).format("LLL")}`}
+                />
               </Grid>
             </Grid>
             <Grid container direction="row">
@@ -529,6 +476,6 @@ export const EmailView: FC<IEmailViewProps> = ({ ticketNumber, emailId }) => {
           </Grid>
         </EmailContext.Provider>
       )}
-    </Box>
+    </>
   );
 };

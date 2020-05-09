@@ -35,6 +35,7 @@ import {
 } from './header/MessageContext';
 import { Snack } from './header/Snack';
 import { ISnack, showSnack } from './header/snacks';
+import { EmailLoader } from './tickets/emailView/EmailLoader';
 
 const Tickets = lazy(() => import("./tickets/Tickets").then(module => ({ default: module.Tickets })));
 const ByEmail = lazy(() => import("./tickets/ByEmail").then(module => ({ default: module.ByEmail })));
@@ -203,7 +204,9 @@ export const Frontend: RoutedFC = () => {
             <Router className={styles.router}>
               <Redirect from="/" to={`${routes.base}${routes.tickets}`} noThrow />
               <ByEmail path={`${routes.byEmail}/*emailId`} />
-              <Tickets path={`${routes.tickets}/*ticketPath`} />
+              <Tickets path={`${routes.tickets}`}>
+                <EmailLoader path=":ticketNumber/*" />
+              </Tickets>
               <Error path={routes.error} default message={errors.notFound} />
             </Router>
           </Suspense>

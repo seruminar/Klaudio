@@ -1,5 +1,6 @@
 import { Wretcher } from 'wretch';
 
+import { CrmApiResponse } from './CrmApiResponse';
 import { CrmEndpoint } from './CrmEndpoint';
 import { CrmIdQuery } from './CrmIdQuery';
 import { CrmQueryBase } from './CrmQueryBase';
@@ -91,5 +92,9 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
     }
 
     return request;
+  }
+
+  async sendRequest(request: Wretcher) {
+    return (await request.get().json<CrmApiResponse<T[]>>()).value;
   }
 }
