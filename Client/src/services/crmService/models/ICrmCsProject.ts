@@ -16,8 +16,8 @@ export enum ProductFamily {
 export interface ICrmCsProject extends ICrmEntity {
   ken_csprojecttype: ProjectType;
   ken_productfamily: ProductFamily;
-  ken_name: string;
-  ken_csprojectdetails: string;
+  ken_name?: string;
+  ken_csprojectdetails: string | null;
   ken_csprojectstatus: unknown;
   ken_customersuccessprojectid: Guid;
   createdon: Date;

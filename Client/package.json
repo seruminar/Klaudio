@@ -1,16 +1,16 @@
 {
   "name": "klaudio-client",
   "niceName": "Klaudio",
-  "version": "0.1.8",
+  "version": "0.1.12",
   "homepage": "/WebResources/ken_SimpleCRM",
   "description": "Klaudio is at your service. Klaudio is a tool to make it easy to use Dynamics CRM for Kentico Customer Success.",
   "private": true,
   "dependencies": {
     "@material-ui/core": "^4.9.12",
     "@material-ui/icons": "^4.9.1",
-    "@material-ui/lab": "^4.0.0-alpha.51",
+    "@material-ui/lab": "^4.0.0-alpha.52",
     "@reach/router": "^1.3.3",
-    "@types/chrome": "^0.0.106",
+    "@types/chrome": "^0.0.107",
     "@types/jest": "^25.1.4",
     "@types/linkifyjs": "^2.1.3",
     "@types/node": "^13.9.8",
@@ -19,10 +19,11 @@
     "@types/react-dom": "^16.9.6",
     "@types/react-helmet": "^5.0.15",
     "@types/use-subscription": "^1.0.0",
+    "@welldone-software/why-did-you-render": "^4.2.0",
     "clsx": "^1.1.0",
     "linkifyjs": "^2.1.9",
     "moment": "^2.24.0",
-    "node-sass": "^4.13.1",
+    "node-sass": "^4.14.1",
     "react": "^16.13.1",
     "react-boundary": "^1.0.0",
     "react-dom": "^16.13.1",
@@ -30,12 +31,13 @@
     "react-scripts": "^3.4.1",
     "rxjs": "^6.5.5",
     "sort-array": "^4.1.0",
-    "suneditor": "^2.28.4",
+    "suneditor": "^2.29.0",
     "typed-inject": "^2.2.1",
     "typescript": "3.8.3",
     "use-async-effect": "^2.2.2",
     "use-subscription": "^1.4.1",
-    "wretch": "^1.7.1"
+    "wretch": "^1.7.2",
+    "wretch-middlewares": "^0.1.11"
   },
   "scripts": {
     "start": "react-scripts --max-http-header-size=16385 start",
@@ -64,6 +66,6 @@
   },
   "devDependencies": {
     "archiver": "^4.0.1",
-    "prettier": "^1.19.1"
+    "prettier": "^2.0.5"
   }
 }

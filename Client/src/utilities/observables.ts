@@ -35,3 +35,28 @@ export const useSubscriptionEffect = <T>(
 
   return useSubscription(observable);
 };
+
+let last = "";
+let counter = 1;
+
+export const debugRenders = (...values: any[]) => {
+  const parsed: any[] = [];
+  for (const value of values) {
+    if (value === undefined || value === null) {
+      continue;
+    }
+    if (value.length !== undefined) {
+      parsed.push(value.length);
+      continue;
+    }
+    parsed.push(value);
+  }
+
+  const result = JSON.stringify(parsed);
+  if (last === result) {
+    console.log(`%c${counter++}`, "color: red", ...parsed);
+  } else {
+    console.log(counter++, ...parsed);
+  }
+  last = result;
+};

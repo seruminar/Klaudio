@@ -9,11 +9,9 @@ import {
     ExpansionPanelSummary,
     List,
     ListItem,
-    ListItemAvatar,
-    ListItemSecondaryAction,
-    ListItemText,
     makeStyles,
-    Theme
+    Theme,
+    Typography
 } from '@material-ui/core';
 import { ExpandMore } from '@material-ui/icons';
 
@@ -21,53 +19,68 @@ interface IExpandablePanelProps<T> {
   label: ReactNode;
   items: T[] | undefined;
   selected?: (item: T) => boolean;
-  direction?: "vertical" | "horizontal";
   expanded?: boolean;
   getAvatar?: (item: T) => ReactNode;
-  getLeft: (item: T) => ReactNode;
-  getRight: (item: T) => ReactNode;
+  getHeading: (item: T) => ReactNode;
+  getRight?: (item: T) => ReactNode;
   getAction?: (item: T) => ReactNode;
-  classes?: { avatar: string };
+  getText?: (item: T) => ReactNode;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
+    root: {
+      background: "none",
+      margin: `${theme.spacing(1)}px 0 !important`,
+      "&:before": {
+        background: "none",
+      },
+      "& .MuiExpansionPanelSummary-expandIcon": {
+        padding: "initial",
+      },
+    },
+    summaryRoot: { minHeight: `${theme.spacing(5)}px !important` },
+    summary: { margin: "0 !important" },
+    summaryHolder: {
+      display: "flex",
+      justifyContent: "space-between",
+      width: "100%",
+      padding: theme.spacing(0, 1, 0, 0),
+    },
+    container: { padding: theme.spacing(0.5) },
     list: {
       overflowY: "scroll",
       overscrollBehavior: "contain",
       width: "100%",
-      maxHeight: theme.spacing(20)
+      maxHeight: theme.spacing(20),
     },
-    default: {
-      background: "none",
-      margin: `${theme.spacing(1)}px 0 !important`,
-      "&:before": {
-        background: "none"
+    listItem: { padding: theme.spacing(0, 1.5, 0, 1), flexDirection: "column" },
+    listItemAvatar: {
+      width: theme.spacing(2.5),
+      height: theme.spacing(2.5),
+      marginRight: theme.spacing(0.5),
+      "& > svg": {
+        fontSize: ".75rem",
       },
-      "& .MuiExpansionPanelSummary-expandIcon": {
-        padding: "initial"
-      }
     },
-    summary: { minHeight: `${theme.spacing(5)}px !important` },
-    labelHolder: {
+    listItemHeader: {
       display: "flex",
-      justifyContent: "space-between",
+      flexDirection: "row",
       width: "100%",
-      padding: theme.spacing(0, 1, 0, 0)
+      alignItems: "center",
+      justifyContent: "space-between",
     },
-    label: { margin: "0 !important" },
-    container: { padding: theme.spacing(0.5) },
-    item: {
-      display: "flex"
+    listItemHeading: {
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      flex: 1,
+      placeSelf: "center",
+      margin: theme.spacing(0.25, 0.5, 0.25, 0),
     },
-    vertical: {
-      display: "flex",
-      flexDirection: "column"
+    listItemContent: {
+      marginBottom: theme.spacing(1),
     },
-    left: {
-      display: "flex",
-      justifyContent: "space-between"
-    }
   })
 );
 
@@ -76,46 +89,44 @@ export const ExpandablePanel: <T>(props: IExpandablePanelProps<T>) => ReactEleme
   getAction,
   items,
   selected,
-  direction,
   expanded,
   getAvatar,
-  getLeft,
+  getHeading,
   getRight,
-  classes
+  getText,
 }) => {
   const styles = useStyles();
 
   const [expand, setExpand] = useState(expanded ?? false);
 
-  const { avatar } = classes ?? { avatar: undefined };
-
   return (
     <ExpansionPanel
-      className={styles.default}
+      className={styles.root}
       square
       expanded={expand}
       onChange={(_, expand) => setExpand(expand)}
-      onClick={event => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
     >
-      <ExpansionPanelSummary classes={{ root: styles.summary, content: styles.label }} expandIcon={<ExpandMore />}>
-        <Box className={styles.labelHolder}>{label}</Box>
+      <ExpansionPanelSummary classes={{ root: styles.summaryRoot, content: styles.summary }} expandIcon={<ExpandMore />}>
+        <Box className={styles.summaryHolder}>{label}</Box>
       </ExpansionPanelSummary>
       <ExpansionPanelDetails className={styles.container}>
         <List className={styles.list}>
           {items?.map((item, index) => (
-            <ListItem key={index} alignItems="flex-start" dense selected={selected && selected(item)}>
-              {getAvatar && (
-                <ListItemAvatar className={avatar}>
-                  <Avatar>{getAvatar(item)}</Avatar>
-                </ListItemAvatar>
+            <ListItem key={index} dense alignItems="flex-start" className={styles.listItem} selected={selected && selected(item)}>
+              <Box className={styles.listItemHeader}>
+                {getAvatar && <Avatar className={styles.listItemAvatar}>{getAvatar(item)}</Avatar>}
+                <Typography variant="caption" color="textSecondary" className={styles.listItemHeading}>
+                  {getHeading(item)}
+                </Typography>
+                {getRight && getRight(item)}
+                {getAction && getAction(item)}
+              </Box>
+              {getText && (
+                <Typography className={styles.listItemContent} variant="body1">
+                  {getText(item)}
+                </Typography>
               )}
-              <ListItemText
-                className={direction === "vertical" ? styles.vertical : styles.item}
-                primary={getLeft(item)}
-                secondary={getRight(item)}
-                classes={{ primary: styles.left }}
-              />
-              {getAction && <ListItemSecondaryAction>{getAction(item)}</ListItemSecondaryAction>}
             </ListItem>
           ))}
         </List>

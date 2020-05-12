@@ -84,7 +84,7 @@ export const App = boundary(() => {
       const [, simpleCrmEmailId] = anchor.split("=");
 
       if (simpleCrmEmailId) {
-        await navigate(`${routes.base}${routes.byEmail}/${simpleCrmEmailId}`);
+        await navigate(`${routes.base}${routes.byId}/${simpleCrmEmailId}`);
       }
     } else {
       const [simpleCrmTicketNumber, simpleCrmEmailId] = anchor.split("|");

@@ -40,6 +40,7 @@ import { RoutedFC } from '../../../utilities/routing';
 import { routes } from '../../routes';
 import { Loading } from '../../shared/Loading';
 import { PaneList } from '../../shared/PaneList';
+import { EmailLoader } from './emailView/EmailLoader';
 import { TicketItem } from './TicketItem';
 import { TicketsFilterField } from './TicketsFilterField';
 
@@ -47,7 +48,12 @@ type OrderBy = "modified" | "due" | "owner" | "priority";
 
 enum TicketsTabs {
   Filter,
-  Search
+  Search,
+}
+
+interface ITicketsProps {
+  ticketNumber: string;
+  emailId: string;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -55,50 +61,50 @@ const useStyles = makeStyles((theme: Theme) =>
     search: {
       height: "100%",
       maxWidth: theme.spacing(32),
-      borderRight: `${theme.spacing(0.1)}px solid ${theme.palette.divider}`
+      borderRight: `${theme.spacing(0.1)}px solid ${theme.palette.divider}`,
     },
     emailView: {
       display: "flex",
       margin: theme.spacing(2),
       flex: 1,
       "& > div": {
-        width: "100%"
-      }
+        width: "100%",
+      },
     },
     hidden: {
-      display: "none"
+      display: "none",
     },
     tab: {
       [theme.breakpoints.up("sm")]: {
-        minWidth: theme.spacing(2)
-      }
+        minWidth: theme.spacing(2),
+      },
     },
     emailRouter: { display: "flex", minWidth: 0, width: "100%" },
     fill: {
-      flex: 1
+      flex: 1,
     },
     filter: {
-      flex: 1
+      flex: 1,
     },
     filterField: {
       width: "100% ",
-      padding: theme.spacing(1, 2)
+      padding: theme.spacing(1, 2),
     },
     orderByRow: {
       "& > label": {
-        margin: "initial"
-      }
+        margin: "initial",
+      },
     },
     orderByIcon: {
-      display: "block"
+      display: "block",
     },
     searchLoading: {
-      height: "1em"
-    }
+      height: "1em",
+    },
   })
 );
 
-export const Tickets: RoutedFC = ({ children }) => {
+export const Tickets: RoutedFC<ITicketsProps> = () => {
   const styles = useStyles();
 
   const [tab, setTab] = useState<TicketsTabs>(TicketsTabs.Filter);
@@ -114,8 +120,7 @@ export const Tickets: RoutedFC = ({ children }) => {
 
   const searchTicketNumberStream = useRef(new Subject<string>());
 
-  const ticketPath = useMatch(`${routes.base}${routes.tickets}/*ticketPath`)?.ticketPath;
-  const [ticketNumber, emailId] = (ticketPath ?? "").split("/");
+  const [ticketNumber, emailId] = useMatch(`${routes.base}${routes.tickets}/*ticketPath`)?.ticketPath?.split("/") || [undefined, undefined];
 
   const crmService = useDependency(ICrmService);
 
@@ -212,7 +217,7 @@ export const Tickets: RoutedFC = ({ children }) => {
     let options: { [key: string]: string } = {};
 
     if (users) {
-      [systemUser, ...users].map(user => (options[user.systemuserid] = user.fullname ?? user.systemuserid));
+      [systemUser, ...users].map((user) => (options[user.systemuserid] = user.fullname ?? user.systemuserid));
     }
 
     return options;
@@ -220,10 +225,10 @@ export const Tickets: RoutedFC = ({ children }) => {
 
   useEffect(() => {
     const subscription = searchTicketNumberStream.current.pipe(debounceTime(experience.searchTimeout)).subscribe({
-      next: async ticketNumber => {
+      next: async (ticketNumber) => {
         setSearching(true);
         setSearchTicketNumberFilter(ticketNumber);
-      }
+      },
     });
 
     return () => subscription.unsubscribe();
@@ -242,16 +247,16 @@ export const Tickets: RoutedFC = ({ children }) => {
             by: ["unassigned", "modifiedon"],
             order: [order, order],
             computed: {
-              unassigned
-            }
+              unassigned,
+            },
           });
         case "due":
           return sortArray(tickets, {
             by: ["unassigned", "ken_sladuedate"],
             order: [order, order],
             computed: {
-              unassigned
-            }
+              unassigned,
+            },
           });
         case "owner":
           return sortArray(tickets, {
@@ -259,9 +264,9 @@ export const Tickets: RoutedFC = ({ children }) => {
             order: [order, order],
             computed: {
               unassigned,
-              name: ticket =>
-                ticket.owninguser?.systemuserid === systemUser.systemuserid ? (orderByReverse ? "Zz" : "Aa") : ticket.owninguser?.fullname
-            }
+              name: (ticket) =>
+                ticket.owninguser?.systemuserid === systemUser.systemuserid ? (orderByReverse ? "Zz" : "Aa") : ticket.owninguser?.fullname,
+            },
           });
         case "priority":
           return sortArray(tickets, {
@@ -269,7 +274,7 @@ export const Tickets: RoutedFC = ({ children }) => {
             order: [order, order],
             computed: {
               unassigned,
-              priority: ticket => {
+              priority: (ticket) => {
                 switch (ticket.prioritycode) {
                   case TicketPriority.FireFighting:
                     return 1;
@@ -284,8 +289,8 @@ export const Tickets: RoutedFC = ({ children }) => {
                   case TicketPriority.Processed:
                     return 6;
                 }
-              }
-            }
+              },
+            },
           });
       }
     }
@@ -319,27 +324,27 @@ export const Tickets: RoutedFC = ({ children }) => {
             <TicketsFilterField
               options={entityNames.ticketGroup}
               label={ticketsTerms.queue}
-              getCount={value =>
+              getCount={(value) =>
                 allTickets
-                  ?.filter(ticket => ticket.dyn_ticket_group === parseInt(value))
-                  .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length
+                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(value))
+                  .filter((ticket) => ticket.statuscode === parseInt(ticketStatus)).length
               }
               value={ticketQueue}
-              setValue={value => setTicketQueue(value ? value : TicketGroup.Support.toString())}
+              setValue={(value) => setTicketQueue(value ? value : TicketGroup.Support.toString())}
             />
           </Box>
           <Box className={styles.filterField}>
             <TicketsFilterField
               options={entityNames.ticketPriority}
               label={ticketsTerms.priority}
-              getCount={value =>
+              getCount={(value) =>
                 allTickets
-                  ?.filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                  .filter(ticket => ticket.prioritycode === parseInt(value))
-                  .filter(ticket => ticket.statuscode === parseInt(ticketStatus)).length
+                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue))
+                  .filter((ticket) => ticket.prioritycode === parseInt(value))
+                  .filter((ticket) => ticket.statuscode === parseInt(ticketStatus)).length
               }
               value={ticketPriority}
-              setValue={value => setTicketPriority(value)}
+              setValue={(value) => setTicketPriority(value)}
             />
           </Box>
           <Box className={styles.filterField}>
@@ -347,21 +352,21 @@ export const Tickets: RoutedFC = ({ children }) => {
               options={entityNames.ticketStatus}
               label={ticketsTerms.status}
               value={ticketStatus}
-              setValue={value => setTicketStatus(value ? value : TicketStatus.Queue.toString())}
+              setValue={(value) => setTicketStatus(value ? value : TicketStatus.Queue.toString())}
             />
           </Box>
           <Box className={styles.filterField}>
             <TicketsFilterField
               options={usersFilterOptions}
               label={ticketsTerms.owner}
-              getCount={value =>
+              getCount={(value) =>
                 allTickets
-                  ?.filter(ticket => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                  .filter(ticket => ticket.statuscode === parseInt(ticketStatus))
-                  .filter(ticket => ticket._ownerid_value === value).length
+                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue))
+                  .filter((ticket) => ticket.statuscode === parseInt(ticketStatus))
+                  .filter((ticket) => ticket._ownerid_value === value).length
               }
               value={ticketOwner}
-              setValue={value => setTicketOwner(value)}
+              setValue={(value) => setTicketOwner(value)}
             />
           </Box>
           <Box className={styles.filterField}>
@@ -374,7 +379,7 @@ export const Tickets: RoutedFC = ({ children }) => {
                   aria-label={ticketsTerms.orderBy}
                   name={ticketsTerms.orderBy}
                   value={ticketOrderBy}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => setTicketOrderBy(event.target.value as OrderBy)}
+                  onChange={(event) => setTicketOrderBy(event.target.value as OrderBy)}
                 >
                   <FormControlLabel
                     value="modified"
@@ -433,7 +438,7 @@ export const Tickets: RoutedFC = ({ children }) => {
               label={ticketsTerms.ticketNumber}
               fullWidth
               value={searchTicketNumber}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              onChange={(event) => {
                 setSearchTicketNumber(event.target.value);
                 searchTicketNumberStream.current.next(event.target.value);
               }}
@@ -444,7 +449,7 @@ export const Tickets: RoutedFC = ({ children }) => {
                         <InputAdornment position="end" className={styles.searchLoading}>
                           <Loading small />
                         </InputAdornment>
-                      )
+                      ),
                     }
                   : undefined
               }
@@ -455,7 +460,7 @@ export const Tickets: RoutedFC = ({ children }) => {
       </Grid>
       <PaneList tooltip={[ticketsTerms.expand, ticketsTerms.collapse]}>
         {!tickets && <Loading />}
-        {orderedTickets?.map(ticket => (
+        {orderedTickets?.map((ticket) => (
           <TicketItem
             key={ticket.incidentid}
             ticket={ticket}
@@ -466,7 +471,7 @@ export const Tickets: RoutedFC = ({ children }) => {
         ))}
       </PaneList>
       <Grid item zeroMinWidth className={styles.emailView} xs={"auto"}>
-        {ticketNumber && children}
+        {ticketNumber && <EmailLoader ticketNumber={ticketNumber} emailId={emailId} />}
       </Grid>
     </Grid>
   );

@@ -25,7 +25,9 @@
     "case": "Case: ",
     "premium": "Premium",
     "unknown": "Unknown",
-    "isSla": "Premium support"
+    "isSla": "Premium support",
+    "addNote": "Add note",
+    "editNote": "Edit note"
   },
   "email": {
     "showDetails": "Show details",

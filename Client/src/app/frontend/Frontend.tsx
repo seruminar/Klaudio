@@ -35,10 +35,9 @@ import {
 } from './header/MessageContext';
 import { Snack } from './header/Snack';
 import { ISnack, showSnack } from './header/snacks';
-import { EmailLoader } from './tickets/emailView/EmailLoader';
 
 const Tickets = lazy(() => import("./tickets/Tickets").then(module => ({ default: module.Tickets })));
-const ByEmail = lazy(() => import("./tickets/ByEmail").then(module => ({ default: module.ByEmail })));
+const ById = lazy(() => import("./tickets/ById").then(module => ({ default: module.ById })));
 const Error = lazy(() => import("../shared/Error").then(module => ({ default: module.Error })));
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -154,7 +153,7 @@ export const Frontend: RoutedFC = () => {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const route = useMatch(`${routes.base}/:route/*`)?.route;
+  const context = useMatch(`${routes.base}/:route/*`);
 
   const themeContext = useContext(ThemeContext);
 
@@ -180,7 +179,7 @@ export const Frontend: RoutedFC = () => {
           </div>
           <Divider />
           <List>
-            <ListItem button className={styles.menuItem} selected={route !== undefined && `/${route}` === routes.tickets}>
+            <ListItem button className={styles.menuItem} selected={`/${context?.route}` === routes.tickets}>
               <ListItemIcon>
                 <Link to={`${routes.base}${routes.tickets}`}>
                   <Mail color="action" />
@@ -203,10 +202,8 @@ export const Frontend: RoutedFC = () => {
           <Suspense fallback={<Loading />}>
             <Router className={styles.router}>
               <Redirect from="/" to={`${routes.base}${routes.tickets}`} noThrow />
-              <ByEmail path={`${routes.byEmail}/*emailId`} />
-              <Tickets path={`${routes.tickets}`}>
-                <EmailLoader path=":ticketNumber/*" />
-              </Tickets>
+              <ById path={`${routes.byId}/*ticketId`} />
+              <Tickets path={`${routes.tickets}/*`} />
               <Error path={routes.error} default message={errors.notFound} />
             </Router>
           </Suspense>

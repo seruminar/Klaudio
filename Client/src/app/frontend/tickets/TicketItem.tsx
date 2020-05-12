@@ -1,4 +1,4 @@
-import React, { FC, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import React, { FC, lazy, memo, Suspense, useCallback, useEffect, useRef } from 'react';
 
 import { createStyles, Grid, ListItem, makeStyles, Theme, Typography } from '@material-ui/core';
 import { Alarm, Cake, Edit } from '@material-ui/icons';
@@ -20,7 +20,7 @@ const TicketDetails = lazy(() => import("./TicketDetails").then(module => ({ def
 
 interface ITicketItemProps {
   ticket: ICrmTicket;
-  ticketNumber: string;
+  ticketNumber: string | undefined;
   emailId: string | undefined;
   owner?: ICrmUser;
 }
@@ -54,92 +54,92 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const TicketItem: FC<ITicketItemProps> = ({ ticket, ticketNumber, emailId, owner }) => {
-  const styles = useStyles();
+export const TicketItem: FC<ITicketItemProps> = memo(
+  ({ ticket, ticketNumber, emailId, owner }) => {
+    const styles = useStyles();
 
-  const [scrolled, setScrolled] = useState(false);
+    const listItemRef = useRef<HTMLDivElement>(null);
 
-  const listItemRef = useRef<HTMLDivElement>(null);
+    const crmService = useDependency(ICrmService);
 
-  const crmService = useDependency(ICrmService);
+    const ticketIsSelected = useCallback((ticket: ICrmTicket) => ticketNumber === ticket.ticketnumber, [ticketNumber]);
 
-  const ticketIsSelected = useCallback((ticket: ICrmTicket) => ticketNumber === ticket.ticketnumber, [ticketNumber]);
+    const scrollIntoView = useCallback(() => {
+      listItemRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+    }, []);
 
-  const scrollIntoView = useCallback(() => {
-    listItemRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
-  }, []);
+    const onClick = useCallback(
+      (ticket: ICrmTicket) => async () => {
+        scrollIntoView();
+        if (!ticketIsSelected(ticket)) {
+          await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
+        }
+      },
+      [ticketIsSelected, scrollIntoView]
+    );
 
-  const onClick = useCallback(
-    (ticket: ICrmTicket) => async () => {
-      scrollIntoView();
-      setScrolled(false);
-      if (!ticketIsSelected(ticket)) {
-        await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
+    useEffect(() => {
+      if (ticketIsSelected(ticket)) {
+        scrollIntoView();
       }
-    },
-    [ticketIsSelected, scrollIntoView]
-  );
+    }, [scrollIntoView, ticket, ticketIsSelected]);
 
-  useEffect(() => {
-    if (!scrolled && ticketIsSelected(ticket)) {
-      scrollIntoView();
-      setScrolled(true);
-    }
-  }, [scrolled, scrollIntoView, ticket, ticketIsSelected]);
-
-  return (
-    <ListItem
-      dense
-      alignItems="flex-start"
-      ref={listItemRef}
-      button={!ticketIsSelected(ticket) as any}
-      selected={ticketIsSelected(ticket)}
-      onClick={onClick(ticket)}
-    >
-      <Grid container direction="column" className={styles.content}>
-        <Grid item container>
+    return (
+      <ListItem
+        dense
+        alignItems="flex-start"
+        ref={listItemRef}
+        button={!ticketIsSelected(ticket) as any}
+        selected={ticketIsSelected(ticket)}
+        onClick={onClick(ticket)}
+      >
+        <Grid container direction="column" className={styles.content}>
+          <Grid item container>
+            <Grid item>
+              <TicketIcon className={styles.icon} ticket={ticket} />
+            </Grid>
+            <Grid item sm>
+              {owner && (
+                <>
+                  <Menu
+                    className={styles.menu}
+                    tooltip={emailTerms.more}
+                    options={[
+                      { component: emailTerms.assignToMe },
+                      {
+                        component: emailTerms.openInCrm,
+                        target: crmService
+                          .crmUrl(CrmEntity.Ticket)
+                          .id(ticket.incidentid)
+                          .build()
+                      }
+                    ]}
+                  />
+                  <Typography variant="caption" className={styles.owner}>
+                    {owner.fullname}
+                  </Typography>
+                </>
+              )}
+              <Typography variant="subtitle2">{ticket.title}</Typography>
+              {ticket.customerid_account && <Typography variant="caption">{ticket.customerid_account.name}</Typography>}
+            </Grid>
+          </Grid>
           <Grid item>
-            <TicketIcon className={styles.icon} ticket={ticket} />
+            <Typography component="span" className={styles.metadata}>
+              {ticket.modifiedon && <DateFromNow icon={<Edit />} date={ticket.modifiedon} />}
+              {ticket.ken_sladuedate && <DateFromNow icon={<Alarm />} date={ticket.ken_sladuedate} />}
+              {ticket.createdon && <DateFromNow icon={<Cake />} date={ticket.createdon} />}{" "}
+            </Typography>
           </Grid>
-          <Grid item sm>
-            {owner && (
-              <>
-                <Menu
-                  className={styles.menu}
-                  tooltip={emailTerms.more}
-                  options={[
-                    { component: emailTerms.assignToMe },
-                    {
-                      component: emailTerms.openInCrm,
-                      target: crmService
-                        .crmUrl(CrmEntity.Ticket)
-                        .id(ticket.incidentid)
-                        .build()
-                    }
-                  ]}
-                />
-                <Typography variant="caption" className={styles.owner}>
-                  {owner.fullname}
-                </Typography>
-              </>
-            )}
-            <Typography variant="subtitle2">{ticket.title}</Typography>
-            {ticket.customerid_account && <Typography variant="caption">{ticket.customerid_account.name}</Typography>}
+          <Grid item>
+            <Suspense fallback={<Loading />}>{ticketIsSelected(ticket) && <TicketDetails ticket={ticket} emailId={emailId} />}</Suspense>
           </Grid>
         </Grid>
-        <Grid item>
-          <Typography component="span" className={styles.metadata}>
-            {ticket.modifiedon && <DateFromNow icon={<Edit />} date={ticket.modifiedon} />}
-            {ticket.ken_sladuedate && <DateFromNow icon={<Alarm />} date={ticket.ken_sladuedate} />}
-            {ticket.createdon && <DateFromNow icon={<Cake />} date={ticket.createdon} />}{" "}
-          </Typography>
-        </Grid>
-        <Grid item>
-          <Suspense fallback={<Loading />}>
-            {ticketIsSelected(ticket) && <TicketDetails ticket={ticket} ticketNumber={ticketNumber} emailId={emailId} />}
-          </Suspense>
-        </Grid>
-      </Grid>
-    </ListItem>
-  );
-};
+      </ListItem>
+    );
+  },
+  (previous, next) =>
+    previous.ticketNumber === next.ticketNumber &&
+    previous.ticket.modifiedon === next.ticket.modifiedon &&
+    previous.emailId === next.emailId
+);

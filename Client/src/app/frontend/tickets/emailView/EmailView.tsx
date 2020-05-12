@@ -1,5 +1,5 @@
 import moment from 'moment';
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { BehaviorSubject } from 'rxjs';
 import sortArray from 'sort-array';
@@ -35,7 +35,6 @@ import { deleteFrom } from '../../../../utilities/arrays';
 import { getSizeText } from '../../../../utilities/numbers';
 import { useSubscriptionEffect } from '../../../../utilities/observables';
 import { wait } from '../../../../utilities/promises';
-import { RoutedFC } from '../../../../utilities/routing';
 import { ExpandableList } from '../../../shared/ExpandableList';
 import { Loading } from '../../../shared/Loading';
 import { Menu } from '../../../shared/Menu';
@@ -89,7 +88,7 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const EmailView: RoutedFC<IEmailViewProps> = ({ ticket, emailId }) => {
+export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
   const styles = useStyles();
 
   const [caseAttachments, setCaseAttachments] = useState<ICrmAttachment[]>();

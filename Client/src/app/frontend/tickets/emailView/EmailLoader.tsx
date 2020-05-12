@@ -1,20 +1,20 @@
-import React from 'react';
+import React, { FC } from 'react';
 import useAsyncEffect from 'use-async-effect';
 
 import { Box, createStyles, makeStyles } from '@material-ui/core';
-import { navigate, Router } from '@reach/router';
+import { navigate } from '@reach/router';
 
 import { ICrmService } from '../../../../services/crmService/CrmService';
 import { useDependency } from '../../../../services/dependencyContainer';
 import { systemUser } from '../../../../services/systemUser';
 import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
-import { RoutedFC } from '../../../../utilities/routing';
 import { routes } from '../../../routes';
 import { Loading } from '../../../shared/Loading';
 import { EmailView } from './EmailView';
 
 interface IEmailLoaderProps {
   ticketNumber: string;
+  emailId: string | undefined;
 }
 
 const useStyles = makeStyles(() =>
@@ -34,7 +34,7 @@ const useStyles = makeStyles(() =>
   })
 );
 
-export const EmailLoader: RoutedFC<IEmailLoaderProps> = ({ ticketNumber }) => {
+export const EmailLoader: FC<IEmailLoaderProps> = ({ ticketNumber, emailId }) => {
   const styles = useStyles();
 
   const crmService = useDependency(ICrmService);
@@ -71,7 +71,7 @@ export const EmailLoader: RoutedFC<IEmailLoaderProps> = ({ ticketNumber }) => {
   const emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
 
   const latestEmailId = useSubscriptionEffect(() => {
-    if (ticket?.incidentid) {
+    if (ticket?.incidentid && !emailId) {
       return crmService
         .tickets()
         .id(ticket.incidentid)
@@ -82,22 +82,18 @@ export const EmailLoader: RoutedFC<IEmailLoaderProps> = ({ ticketNumber }) => {
         .orderBy("createdon desc")
         .getObservable();
     }
-  }, [ticket])?.[0];
+  }, [ticket, emailId])?.[0];
 
   useAsyncEffect(async () => {
-    if (ticket?.ticketnumber && latestEmailId?.activityid && ticket.incidentid === latestEmailId._regardingobjectid_value) {
+    if (ticket?.ticketnumber && latestEmailId?.activityid && !emailId && ticket.incidentid === latestEmailId._regardingobjectid_value) {
       await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${latestEmailId.activityid}`, { replace: true });
     }
-  }, [ticket, latestEmailId]);
+  }, [ticket, latestEmailId, emailId]);
 
   return (
     <Box className={styles.root}>
       {!ticket && <Loading />}
-      {ticket && (
-        <Router className={styles.router}>
-          <EmailView path=":emailId" ticket={ticket} />
-        </Router>
-      )}
+      {ticket && emailId && <EmailView ticket={ticket} emailId={emailId} />}
     </Box>
   );
 };

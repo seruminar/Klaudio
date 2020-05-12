@@ -21,6 +21,7 @@ import {
     Cake,
     CallMade,
     CallReceived,
+    Edit,
     HourglassEmpty,
     Visibility
 } from '@material-ui/icons';
@@ -37,82 +38,74 @@ import { ICrmTag } from '../../../services/crmService/models/ICrmTag';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
 import { useDependency } from '../../../services/dependencyContainer';
 import { systemUser } from '../../../services/systemUser';
-import { account, entityNames } from '../../../terms.en-us.json';
+import { account, entityNames, ticket as ticketTerms } from '../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
+import { wait } from '../../../utilities/promises';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
 import { ExpandablePanel } from '../../shared/ExpandablePanel';
 import { Loading } from '../../shared/Loading';
+import { MultilineInput } from '../../shared/MultilineInput';
 import { TicketIcon } from './TicketIcon';
 
 interface ITicketDetailsProps {
   ticket: ICrmTicket;
-  ticketNumber: string;
   emailId: string | undefined;
 }
+
+type NoteMode = "loading" | "ready";
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     divider: {
-      margin: theme.spacing(1, 0)
+      margin: theme.spacing(1, 0),
     },
-    emailItemAvatar: {
-      minWidth: theme.spacing(3),
-      "& > div": {
-        width: theme.spacing(2.5),
-        height: theme.spacing(2.5),
-        "& > svg": {
-          fontSize: ".75rem"
-        }
-      }
-    },
-    emailItemButton: {
-      padding: theme.spacing(0.75)
+    panelItemButton: {
+      padding: theme.spacing(0.75),
     },
     ticketEmail: {
-      display: "flex"
+      display: "flex",
     },
     remainingCredits: { color: theme.palette.type === "light" ? green[500] : green[200] },
     totalCredits: { color: theme.palette.type === "light" ? blue[500] : blue[200] },
     expiredCredits: { color: theme.palette.type === "light" ? red[500] : red[200] },
-    ticketEmailSubject: {
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      flex: 1,
-      placeSelf: "center",
-      margin: theme.spacing(0.25)
+    addNoteWrapper: {
+      position: "relative",
+    },
+    addNote: {
+      width: "100%",
     },
     noteText: {
       whiteSpace: "pre-line",
-      overflowWrap: "break-word"
+      overflowWrap: "break-word",
     },
     link: {
-      color: theme.palette.type === "light" ? blue[500] : blue[200]
+      color: theme.palette.type === "light" ? blue[500] : blue[200],
     },
     addTag: {
-      padding: theme.spacing(0.5)
+      padding: theme.spacing(0.5),
     },
     attachment: {
       float: "left",
-      marginRight: theme.spacing(0.5)
+      marginRight: theme.spacing(0.5),
     },
     tagList: {
       background: theme.palette.action.selected,
-      maxHeight: theme.spacing(20)
+      maxHeight: theme.spacing(20),
     },
     tagOption: {
       fontSize: ".8rem",
-      padding: theme.spacing(0.5, 2)
-    }
+      padding: theme.spacing(0.5, 2),
+    },
   })
 );
 
 export const TicketDetails: FC<ITicketDetailsProps> = memo(
-  ({ ticket, ticketNumber, emailId }) => {
+  ({ ticket, emailId }) => {
     const styles = useStyles();
 
     const [ticketTags, setTicketTags] = useState<ICrmTag[]>();
+    const [noteMode, setNoteMode] = useState<NoteMode>("ready");
 
     const crmService = useDependency(ICrmService);
 
@@ -195,29 +188,22 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
         .getObservable()
     );
 
+    const currentUser = useSubscriptionEffect(() => {
+      return crmService.currentUser().getObservable();
+    }, []);
+
     const rawTicketTags = useSubscription(
-      crmService
-        .tickets()
-        .id(ticket.incidentid)
-        .children("incident_connections1")
-        .select("name")
-        .orderBy("name desc")
-        .getObservable()
+      crmService.tickets().id(ticket.incidentid).children("incident_connections1").select("name").orderBy("name desc").getObservable()
     );
 
     useEffect(() => {
       if (rawTicketTags) {
-        setTicketTags(rawTicketTags.map(connection => ({ dyn_tagid: "", dyn_name: connection.name })));
+        setTicketTags(rawTicketTags.map((connection) => ({ dyn_tagid: "", dyn_name: connection.name })));
       }
     }, [rawTicketTags]);
 
     const allTags = useSubscription(
-      crmService
-        .tags()
-        .select("dyn_name")
-        .filter(`statuscode eq 1 and ken_taggroup eq 281600002`)
-        .orderBy("dyn_name")
-        .getObservable()
+      crmService.tags().select("dyn_name").filter(`statuscode eq 1 and ken_taggroup eq 281600002`).orderBy("dyn_name").getObservable()
     );
 
     const ticketEmailIsSelected = useCallback(
@@ -226,15 +212,9 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
       },
       [emailId]
     );
-    const recentTicketIsSelected = useCallback(
-      (recentTicket: ICrmTicket) => {
-        return ticketNumber === recentTicket.ticketnumber;
-      },
-      [ticketNumber]
-    );
 
     const notCreditsAccountServices = useMemo(
-      () => accountServices?.filter(accountService => accountService.ken_servicetype !== ServiceType.Credits),
+      () => accountServices?.filter((accountService) => accountService.ken_servicetype !== ServiceType.Credits),
       [accountServices]
     );
 
@@ -300,6 +280,17 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
       }
     }, [accountServices]);
 
+    const addNote = useCallback(async (value: string) => {
+      setNoteMode("loading");
+
+      // TEMPORARY
+      await wait(1000);
+
+      setNoteMode("ready");
+
+      return "";
+    }, []);
+
     return (
       <>
         {ticket.customerid_account?.ken_customernote && (
@@ -336,15 +327,10 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                   </>
                 }
                 items={csProjects}
-                direction="vertical"
-                getAvatar={csProject => ProductFamily[csProject.ken_productfamily][0]}
-                getLeft={csProject => (
-                  <>
-                    <Typography variant="subtitle2">{csProject.ken_name}</Typography>
-                    <DateFromNow icon={<Cake />} date={csProject.createdon} />
-                  </>
-                )}
-                getRight={csProject => (
+                getAvatar={(csProject) => ProductFamily[csProject.ken_productfamily][0]}
+                getHeading={(csProject) => csProject.ken_name}
+                getRight={(csProject) => <DateFromNow icon={<Cake />} date={csProject.createdon} />}
+                getText={(csProject) => (
                   <Typography variant="caption" component="span">
                     {csProject.ken_csprojectdetails}
                   </Typography>
@@ -360,7 +346,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                   </>
                 }
                 items={notCreditsAccountServices}
-                getAvatar={accountService => (
+                getAvatar={(accountService) => (
                   <Tooltip
                     title={entityNames.accountService[accountService.statuscode]}
                     aria-label={entityNames.accountService[accountService.statuscode]}
@@ -368,33 +354,23 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                     <Avatar>{entityNames.accountService[accountService.statuscode][0]}</Avatar>
                   </Tooltip>
                 )}
-                getLeft={accountService => (
-                  <Typography variant="caption" color="textSecondary" className={styles.ticketEmailSubject}>
-                    {accountService.ken_name}
-                  </Typography>
-                )}
-                getRight={accountService =>
+                getHeading={(accountService) => accountService.ken_name}
+                getRight={(accountService) =>
                   accountService.ken_expireson && <DateFromNow icon={<HourglassEmpty />} date={accountService.ken_expireson} />
                 }
-                getAction={accountService => (
+                getAction={(accountService) => (
                   <Link
-                    href={crmService
-                      .crmUrl(CrmEntity.AccountService)
-                      .id(accountService.ken_serviceid)
-                      .build()}
+                    href={crmService.crmUrl(CrmEntity.AccountService).id(accountService.ken_serviceid).build()}
                     underline="none"
                     color="textPrimary"
                     target="_blank"
                     rel="noreferrer noopener"
                   >
-                    <IconButton edge="end" aria-label="delete" className={styles.emailItemButton}>
+                    <IconButton edge="end" aria-label="delete" className={styles.panelItemButton}>
                       <Visibility />
                     </IconButton>
                   </Link>
                 )}
-                classes={{
-                  avatar: styles.emailItemAvatar
-                }}
               />
             )}
             {recentTickets.length > 0 && (
@@ -406,26 +382,16 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                   </>
                 }
                 items={recentTickets}
-                selected={recentTicketIsSelected}
-                getAvatar={recentTicket => <TicketIcon ticket={recentTicket} />}
-                getLeft={recentTicket =>
-                  recentTicket.title && (
-                    <Typography variant="caption" color="textSecondary" className={styles.ticketEmailSubject}>
-                      {recentTicket.title}
-                    </Typography>
-                  )
-                }
-                getRight={recentTicket => recentTicket.modifiedon && <DateFromNow date={recentTicket.modifiedon} />}
-                getAction={recentTicket => (
+                getAvatar={(recentTicket) => <TicketIcon ticket={recentTicket} />}
+                getHeading={(recentTicket) => recentTicket.title}
+                getRight={(recentTicket) => recentTicket.modifiedon && <DateFromNow date={recentTicket.modifiedon} />}
+                getAction={(recentTicket) => (
                   <RouteLink to={`${routes.base}${routes.tickets}/${recentTicket.ticketnumber}`}>
-                    <IconButton edge="end" aria-label="delete" className={styles.emailItemButton}>
+                    <IconButton edge="end" aria-label="delete" className={styles.panelItemButton}>
                       <Visibility />
                     </IconButton>
                   </RouteLink>
                 )}
-                classes={{
-                  avatar: styles.emailItemAvatar
-                }}
               />
             )}
           </>
@@ -443,15 +409,10 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 }
                 items={ticketEmails}
                 selected={ticketEmailIsSelected}
-                getAvatar={ticketEmail => (ticketEmail.directioncode && ticketEmail.directioncode ? <CallMade /> : <CallReceived />)}
-                getLeft={ticketEmail =>
-                  ticketEmail.subject && (
-                    <Typography variant="caption" color="textSecondary" className={styles.ticketEmailSubject}>
-                      {ticketEmail.subject}
-                    </Typography>
-                  )
-                }
-                getRight={ticketEmail => (
+                expanded={emailId ? ticketEmails[0].activityid !== emailId : false}
+                getAvatar={(ticketEmail) => (ticketEmail.directioncode && ticketEmail.directioncode ? <CallMade /> : <CallReceived />)}
+                getHeading={(ticketEmail) => ticketEmail.subject}
+                getRight={(ticketEmail) => (
                   <>
                     {ticketEmail.attachmentcount !== undefined && ticketEmail.attachmentcount > 0 && (
                       <Attachment className={styles.attachment} />
@@ -459,16 +420,13 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                     {ticketEmail.modifiedon && <DateFromNow date={ticketEmail.modifiedon} />}
                   </>
                 )}
-                getAction={ticketEmail => (
+                getAction={(ticketEmail) => (
                   <RouteLink to={`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${ticketEmail.activityid}`}>
-                    <IconButton edge="end" aria-label="delete" className={styles.emailItemButton}>
+                    <IconButton edge="end" aria-label="delete" className={styles.panelItemButton}>
                       <Visibility />
                     </IconButton>
                   </RouteLink>
                 )}
-                classes={{
-                  avatar: styles.emailItemAvatar
-                }}
               />
             )}
             {ticketNotes.length > 0 && (
@@ -480,26 +438,39 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                   </>
                 }
                 items={ticketNotes}
-                direction="vertical"
                 expanded
-                getLeft={ticketNote => (
-                  <>
-                    <Typography variant="caption">{ticketNote.modifiedby?.fullname}</Typography>
-                    {ticketNote.modifiedon && <DateFromNow date={ticketNote.modifiedon} />}
-                  </>
-                )}
-                getRight={ticketNote => (
-                  <>
-                    {ticketNote.subject && <Typography variant="subtitle2">{ticketNote.subject}</Typography>}
-                    {ticketNote.notetext && (
+                getHeading={(ticketNote) => ticketNote.modifiedby?.fullname}
+                getRight={(ticketNote) => <>{ticketNote.modifiedon && <DateFromNow date={ticketNote.modifiedon} />}</>}
+                getText={(ticketNote) =>
+                  ticketNote.notetext && (
+                    <>
+                      {ticketNote.subject && <Typography variant="subtitle2">{ticketNote.subject}</Typography>}
                       <Typography variant="caption" color="textPrimary" className={styles.noteText}>
                         <Linkify options={{ className: styles.link }}>{ticketNote.notetext}</Linkify>
                       </Typography>
-                    )}
-                  </>
-                )}
+                    </>
+                  )
+                }
+                getAction={(ticketNote) =>
+                  ticketNote.modifiedby?.systemuserid === currentUser?.UserId && (
+                    <Tooltip title={ticketTerms.editNote} aria-label={ticketTerms.editNote}>
+                      <IconButton edge="end" aria-label="delete" className={styles.panelItemButton}>
+                        <Edit />
+                      </IconButton>
+                    </Tooltip>
+                  )
+                }
               />
             )}
+            <div className={styles.addNoteWrapper}>
+              {noteMode === "loading" && <Loading overlay small />}
+              <MultilineInput
+                className={styles.addNote}
+                placeholder={ticketTerms.addNote}
+                actionLabel={ticketTerms.addNote}
+                action={addNote}
+              />
+            </div>
             {ticketTags.length > 0 && <Divider className={styles.divider} />}
             {!allTags && <Loading />}
             {allTags && (
@@ -508,14 +479,14 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 size="small"
                 options={allTags}
                 filterSelectedOptions
-                getOptionLabel={option => option.dyn_name}
+                getOptionLabel={(option) => option.dyn_name}
                 getOptionSelected={(option, value) => option.dyn_name === value.dyn_name}
                 value={ticketTags}
                 onChange={(_event: any, newValue: any) => {
-                  setTicketTags(ticketTags => (newValue ? newValue : ticketTags));
+                  setTicketTags((ticketTags) => (newValue ? newValue : ticketTags));
                 }}
                 classes={{ listbox: styles.tagList, option: styles.tagOption }}
-                renderInput={params => <TextField {...params} variant="outlined" label={account.caseTags} />}
+                renderInput={(params) => <TextField {...params} variant="outlined" label={account.caseTags} />}
               />
             )}
           </>

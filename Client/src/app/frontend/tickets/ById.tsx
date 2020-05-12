@@ -11,27 +11,26 @@ import { RoutedFC } from '../../../utilities/routing';
 import { routes } from '../../routes';
 import { Loading } from '../../shared/Loading';
 
-interface IByEmailProps {
-  emailId: string;
+interface IByIdProps {
+  ticketId: string;
 }
 
-export const ByEmail: RoutedFC<IByEmailProps> = ({ emailId }) => {
+export const ById: RoutedFC<IByIdProps> = ({ ticketId }) => {
   const crmService = useDependency(ICrmService);
 
   const ticket = useSubscription(
     crmService
       .tickets()
+      .id(ticketId!)
       .select("ticketnumber")
-      .filter(`Incident_Emails/any(e:e/activityid eq ${emailId})`)
-      .top(1)
       .getObservable()
-  )?.[0];
+  );
 
   useAsyncEffect(async () => {
     if (ticket) {
-      await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${emailId}`);
+      await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}`);
     }
-  }, [ticket, emailId]);
+  }, [ticket, ticketId]);
 
   return (
     <Grid container wrap="nowrap">
