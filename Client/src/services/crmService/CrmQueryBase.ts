@@ -1,5 +1,6 @@
 import { BehaviorSubject } from 'rxjs';
 import wretch, { Wretcher } from 'wretch';
+import { retry } from 'wretch-middlewares';
 
 import { context } from '../../appSettings.json';
 import { wait } from '../../utilities/promises';
@@ -29,7 +30,7 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
   protected abstract getRequest(request: Wretcher): Wretcher;
 
   getObservable(previousValue: T | undefined): BehaviorSubject<T | undefined> {
-    const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}`));
+    const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}`).middlewares([retry()]));
 
     const fullUrl = request._url;
 
@@ -41,7 +42,7 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
 
     const newObservable = new BehaviorSubject<T | undefined>(previousValue);
 
-    const getResponse = (observable: BehaviorSubject<T | undefined>) => this.getResponse(request).then(data => observable.next(data));
+    const getResponse = (observable: BehaviorSubject<T | undefined>) => this.getResponse(request).then((data) => observable.next(data));
 
     observablesCache[fullUrl] = new CacheItem(newObservable, this.cacheDuration, getResponse, () => delete observablesCache[fullUrl]);
 
@@ -59,7 +60,7 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
 
       const TEMP_responses = await import("../TEMP_responses.json");
 
-      const item = TEMP_responses.default.find(item => item.url === request._url);
+      const item = TEMP_responses.default.find((item) => item.url === request._url);
 
       if (item) {
         if (item.value) {
