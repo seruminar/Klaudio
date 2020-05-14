@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import React, { FC, ReactNode, useState } from 'react';
 
 import {
     createStyles,
@@ -10,14 +10,17 @@ import {
     Theme,
     Tooltip
 } from '@material-ui/core';
-import { NoteAdd } from '@material-ui/icons';
+import { Check } from '@material-ui/icons';
 
 interface IMultilineInputProps {
   className?: string;
   placeholder?: string;
 
+  value?: string;
   actionLabel?: string;
-  action?: (value: string) => Promise<string>;
+  action?: (value: string) => Promise<string | void>;
+
+  actionButton?: ReactNode;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -32,31 +35,38 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-export const MultilineInput: FC<IMultilineInputProps> = ({ className, placeholder, actionLabel, action }) => {
+export const MultilineInput: FC<IMultilineInputProps> = ({
+  className,
+  placeholder,
+  value: defaultValue,
+  actionLabel,
+  action,
+  actionButton,
+}) => {
   const styles = useStyles();
 
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(defaultValue ?? "");
 
   return (
     <FormControl className={className}>
       <div className={styles.root}>
-        <InputLabel>{placeholder}</InputLabel>
+        {placeholder && <InputLabel>{placeholder}</InputLabel>}
         <Input className={styles.input} multiline rowsMax={6} value={value} onChange={(event) => setValue(event.target.value)} />
-        {value !== "" && (
+        {value !== "" && action && (
           <>
             {actionLabel ? (
               <Tooltip title={actionLabel} aria-label={actionLabel}>
                 <IconButton
                   color="primary"
                   aria-label={actionLabel}
-                  onClick={(_) => action && action(value).then((value) => setValue(value))}
+                  onClick={(_) => action(value).then((value) => value !== undefined && setValue(value))}
                 >
-                  <NoteAdd />
+                  {actionButton ? actionButton : <Check />}
                 </IconButton>
               </Tooltip>
             ) : (
-              <IconButton color="primary">
-                <NoteAdd />
+              <IconButton color="primary" onClick={(_) => action(value).then((value) => value !== undefined && setValue(value))}>
+                {actionButton ? actionButton : <Check />}
               </IconButton>
             )}
           </>

@@ -1,4 +1,5 @@
 export enum CrmEntity {
   Ticket = "incident",
-  AccountService = "ken_service"
+  Jira = "dyn_jira",
+  AccountService = "ken_service",
 }

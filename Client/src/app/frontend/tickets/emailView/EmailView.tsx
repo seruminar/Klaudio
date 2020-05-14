@@ -5,10 +5,17 @@ import { BehaviorSubject } from 'rxjs';
 import sortArray from 'sort-array';
 
 import {
+    Avatar,
     Chip,
     createStyles,
+    Dialog,
+    DialogTitle,
     Grid,
     IconButton,
+    List,
+    ListItem,
+    ListItemAvatar,
+    ListItemText,
     makeStyles,
     Theme,
     Tooltip,
@@ -21,6 +28,7 @@ import { ICrmService } from '../../../../services/crmService/CrmService';
 import { ICrmAttachment } from '../../../../services/crmService/models/ICrmAttachment';
 import { EmailStatus } from '../../../../services/crmService/models/ICrmEmail';
 import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
+import { ICrmUser } from '../../../../services/crmService/models/ICrmUser';
 import { ParticipationType } from '../../../../services/crmService/models/ParticipationType';
 import { TicketPriority } from '../../../../services/crmService/models/TicketPriority';
 import { TicketStatus } from '../../../../services/crmService/models/TicketStatus';
@@ -53,12 +61,13 @@ interface IEmailContext {
 
 export const EmailContext = createContext<IEmailContext>({
   mode: "loading",
-  setMode: () => {}
+  setMode: () => {},
 });
 
 interface IEmailViewProps {
   ticket: ICrmTicket;
   emailId: string;
+  users: ICrmUser[] | undefined;
 }
 
 export type EmailViewMode = "newReply" | "edit" | "view" | "viewDraft" | "loading";
@@ -71,30 +80,35 @@ const useStyles = makeStyles((theme: Theme) =>
       margin: theme.spacing(2, 0, 0),
       width: "100%",
       display: "flex",
-      position: "relative"
+      position: "relative",
     },
     container: {
-      flex: 1
+      flex: 1,
     },
     spacer: {
-      flex: 1
+      flex: 1,
     },
     recipients: {
-      margin: theme.spacing(0, 0, 1)
+      margin: theme.spacing(0, 0, 1),
     },
     attachment: {
-      margin: theme.spacing(0.5)
-    }
+      margin: theme.spacing(0.5),
+    },
+    assignToList: {
+      maxHeight: theme.spacing(40),
+      overflowY: "scroll",
+    },
   })
 );
 
-export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
+export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
   const styles = useStyles();
 
   const [caseAttachments, setCaseAttachments] = useState<ICrmAttachment[]>();
   const [toEmails, setToEmails] = useState<IEmailRecipient[]>([]);
   const [ccEmails, setCcEmails] = useState<IEmailRecipient[]>([]);
   const [bccEmails, setBccEmails] = useState<IEmailRecipient[]>([]);
+  const [assignToOpen, setAssignToOpen] = useState(false);
 
   const [mode, setMode] = useState<EmailViewMode>("loading");
 
@@ -120,10 +134,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
 
   const rawEmailContent = useSubscriptionEffect(() => {
     if (email?.activityid) {
-      return crmService
-        .emailBody()
-        .id(email.activityid)
-        .getObservable();
+      return crmService.emailBody().id(email.activityid).getObservable();
     }
   }, [email]);
 
@@ -144,15 +155,11 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
   const emailAttachmentsData = useSubscriptionEffect(() => {
     if (rawEmailContent) {
       const cidsFilter = [...rawEmailContent.matchAll(/src="cid:(.*?)"/g)]
-        .map(match => `attachmentcontentid eq '{cid:${match[1]}}'`)
+        .map((match) => `attachmentcontentid eq '{cid:${match[1]}}'`)
         .join(" or ");
 
       if (cidsFilter !== "") {
-        return crmService
-          .attachments()
-          .select("attachmentcontentid", "body")
-          .filter(cidsFilter)
-          .getObservable();
+        return crmService.attachments().select("attachmentcontentid", "body").filter(cidsFilter).getObservable();
       }
 
       return new BehaviorSubject<ICrmAttachment[] | undefined>([]);
@@ -173,14 +180,14 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
 
   useEffect(() => {
     if (rawEmailContent && rawCaseAttachments && emailAttachmentsData) {
-      const matches = [...rawEmailContent.matchAll(/AttachmentId=([0-9a-f-]{36}).*?&amp;CRMWRPCToken/g)].map(match => match[1]);
+      const matches = [...rawEmailContent.matchAll(/AttachmentId=([0-9a-f-]{36}).*?&amp;CRMWRPCToken/g)].map((match) => match[1]);
 
       let caseAttachments = rawCaseAttachments
-        .flatMap(email => email.email_activity_mime_attachment)
-        .filter(caseAttachment => !matches.find(match => caseAttachment.activitymimeattachmentid === match))
+        .flatMap((email) => email.email_activity_mime_attachment)
+        .filter((caseAttachment) => !matches.find((match) => caseAttachment.activitymimeattachmentid === match))
         .filter(
-          caseAttachment =>
-            !emailAttachmentsData.find(attachment => caseAttachment.activitymimeattachmentid === attachment.activitymimeattachmentid)
+          (caseAttachment) =>
+            !emailAttachmentsData.find((attachment) => caseAttachment.activitymimeattachmentid === attachment.activitymimeattachmentid)
         );
 
       setCaseAttachments(caseAttachments);
@@ -206,8 +213,8 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
     if (email?.torecipients) {
       const toEmails = email.torecipients
         .split(";")
-        .filter(recipient => !!recipient)
-        .map(recipient => ({ email: recipient }));
+        .filter((recipient) => !!recipient)
+        .map((recipient) => ({ email: recipient }));
 
       setToEmails(toEmails);
     }
@@ -228,14 +235,14 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
   useEffect(() => {
     if (parties) {
       const ccEmails = parties
-        .filter(party => party.participationtypemask === ParticipationType.CcRecipient)
-        .map(party => ({ name: party.partyid_contact?.fullname, email: party.addressused }));
+        .filter((party) => party.participationtypemask === ParticipationType.CcRecipient)
+        .map((party) => ({ name: party.partyid_contact?.fullname, email: party.addressused }));
 
       setCcEmails(ccEmails);
 
       const bccEmails = parties
-        .filter(party => party.participationtypemask === ParticipationType.BccRecipient)
-        .map(party => ({ name: party.partyid_contact?.fullname, email: party.addressused }));
+        .filter((party) => party.participationtypemask === ParticipationType.BccRecipient)
+        .map((party) => ({ name: party.partyid_contact?.fullname, email: party.addressused }));
 
       setBccEmails(bccEmails);
     }
@@ -243,25 +250,35 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
 
   const emailAttachments = useMemo(() => {
     if (caseAttachments && email) {
-      const emailAttachments = caseAttachments.filter(attachment => attachment._objectid_value === email.activityid);
+      const emailAttachments = caseAttachments.filter((attachment) => attachment._objectid_value === email.activityid);
 
       return sortArray(emailAttachments, {
         by: "filesize",
-        order: "desc"
+        order: "desc",
       });
     }
   }, [caseAttachments, email]);
 
   const otherAttachments = useMemo(() => {
     if (caseAttachments && email) {
-      const emailAttachments = caseAttachments.filter(attachment => attachment._objectid_value !== email.activityid);
+      const emailAttachments = caseAttachments.filter((attachment) => attachment._objectid_value !== email.activityid);
 
       return sortArray(emailAttachments, {
         by: "filesize",
-        order: "desc"
+        order: "desc",
       });
     }
   }, [caseAttachments, email]);
+
+  const assignUser = useCallback(async (user: ICrmUser) => {
+    setAssignToOpen(false);
+    setMode("loading");
+
+    // TEMPORARY
+    await wait(1000);
+
+    setMode("view");
+  }, []);
 
   const editEmail = useCallback(() => {
     setMode("newReply");
@@ -286,11 +303,11 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
         .id(id)
         .select("body", "filename")
         .getObservable()
-        .subscribe(attachment => {
+        .subscribe((attachment) => {
           if (attachment && attachment.body && attachment.filename) {
             const fakeAnchor = document.createElement("a");
 
-            const bodyBytes = Uint8Array.from([...atob(attachment.body)].map(char => char.charCodeAt(0)));
+            const bodyBytes = Uint8Array.from([...atob(attachment.body)].map((char) => char.charCodeAt(0)));
 
             const url = URL.createObjectURL(new Blob([bodyBytes]));
 
@@ -321,6 +338,23 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
 
   return (
     <>
+      {users && (
+        <Dialog open={assignToOpen} onClose={() => setAssignToOpen(false)}>
+          <DialogTitle>{ticketTerms.assignTo}</DialogTitle>
+          <List dense className={styles.assignToList}>
+            {users
+              .filter((user) => user.systemuserid !== ticket._ownerid_value)
+              .map((user) => (
+                <ListItem button key={user.systemuserid} onClick={async () => await assignUser(user)}>
+                  <ListItemAvatar>
+                    <Avatar>{user.address1_telephone3 ? entityNames.userType[user.address1_telephone3] : ""}</Avatar>
+                  </ListItemAvatar>
+                  <ListItemText primary={user.fullname} />
+                </ListItem>
+              ))}
+          </List>
+        </Dialog>
+      )}
       {!(ticket && email && emailAttachments && otherAttachments) && <Loading />}
       {ticket && email && emailAttachments && otherAttachments && (
         <EmailContext.Provider value={emailContext}>
@@ -380,7 +414,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
                   { component: entityNames.ticketStatus[TicketStatus.Queue] },
                   { component: entityNames.ticketStatus[TicketStatus.Waiting] },
                   { component: entityNames.ticketStatus[TicketStatus.Solved] },
-                  { component: entityNames.ticketStatus[TicketStatus.Closed] }
+                  { component: entityNames.ticketStatus[TicketStatus.Closed] },
                 ]}
               />
               <Menu
@@ -392,23 +426,20 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
                   { component: entityNames.ticketPriority[TicketPriority.Normal] },
                   { component: entityNames.ticketPriority[TicketPriority.WaitingForDevelopers] },
                   { component: entityNames.ticketPriority[TicketPriority.LowPriority] },
-                  { component: entityNames.ticketPriority[TicketPriority.Processed] }
+                  { component: entityNames.ticketPriority[TicketPriority.Processed] },
                 ]}
               />
               <Menu
                 tooltip={emailTerms.more}
                 options={[
-                  { component: emailTerms.assignTo },
+                  { component: emailTerms.assignTo, onClick: () => setAssignToOpen(true) },
                   { component: emailTerms.handOver },
                   { component: emailTerms.submitFeedback },
-                  { component: emailTerms.submitBug },
+                  { component: emailTerms.submitBug, target: crmService.crmUrl(CrmEntity.Jira).id(ticket.incidentid).build() },
                   {
                     component: emailTerms.openInCrm,
-                    target: crmService
-                      .crmUrl(CrmEntity.Ticket)
-                      .id(ticket.incidentid)
-                      .build()
-                  }
+                    target: crmService.crmUrl(CrmEntity.Ticket).id(ticket.incidentid).build(),
+                  },
                 ]}
               />
             </Grid>
@@ -432,7 +463,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
                       icon={<AttachFile />}
                     />
                   )}
-                  {emailAttachments.map(attachment => {
+                  {emailAttachments.map((attachment) => {
                     const [size, unit] = getSizeText(attachment.filesize);
 
                     return (
@@ -449,7 +480,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId }) => {
                       />
                     );
                   })}
-                  {otherAttachments.map(attachment => {
+                  {otherAttachments.map((attachment) => {
                     const [size, unit] = getSizeText(attachment.filesize);
 
                     return (

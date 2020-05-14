@@ -1,1 +1,1 @@
-export type UserType = "supportplugin" | "supportconsultingplugin";
+export type UserType = "supportplugin" | "supportconsultingplugin" | "consultingplugin" | "salesplugin" | "trainingplugin";

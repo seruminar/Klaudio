@@ -26,7 +26,7 @@ import { email as emailTerms } from '../../../../terms.en-us.json';
 import { useSubscriptionEffect } from '../../../../utilities/observables';
 import { EmailContext } from './EmailView';
 
-interface IEmailEditor2Props {
+interface IEmailEditorProps {
   value: string;
 }
 
@@ -54,7 +54,7 @@ const useStyles = makeStyles((theme: Theme) =>
           display: "flex",
           flexDirection: "column",
           "& .se-line-breaker": {
-            display: "none !important"
+            display: "none !important",
           },
           "& .se-wrapper": {
             flex: 1,
@@ -74,42 +74,42 @@ const useStyles = makeStyles((theme: Theme) =>
                 margin: "initial",
                 backgroundColor: "initial",
                 "& tr": {
-                  border: "initial"
+                  border: "initial",
                 },
                 "& td": {
                   border: "initial",
-                  padding: "initial"
+                  padding: "initial",
                 },
                 "& th": {
                   border: "initial",
-                  padding: "initial"
-                }
-              }
-            }
-          }
-        }
-      }
+                  padding: "initial",
+                },
+              },
+            },
+          },
+        },
+      },
     },
     editorModeView: { "& .sun-editor": { "& .se-resizing-bar": { display: "none" } } },
     editorModeEdit: {
       border: `1px solid ${theme.palette.action.selected}`,
       transition: theme.transitions.create(["border", "box-shadow"], {
         easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.shorter
+        duration: theme.transitions.duration.shorter,
       }),
       "&:hover": {
         boxShadow: `0 1px ${theme.spacing(1)}px ${theme.spacing(1)}px ${theme.palette.action.hover}, 0 2px 6px 2px ${
           theme.palette.action.hover
         }`,
-        border: "1px solid transparent"
-      }
-    }
+        border: "1px solid transparent",
+      },
+    },
   })
 );
 
 const editorId = "sunEditor";
 
-export const EmailEditor: FC<IEmailEditor2Props> = ({ value }) => {
+export const EmailEditor: FC<IEmailEditorProps> = ({ value }) => {
   const styles = useStyles();
 
   const [editor, setEditor] = useState<SunEditor>();
@@ -126,11 +126,7 @@ export const EmailEditor: FC<IEmailEditor2Props> = ({ value }) => {
 
   const signature = useSubscriptionEffect(() => {
     if (currentUser?.UserId) {
-      return crmService
-        .users()
-        .id(currentUser.UserId)
-        .select("dyn_signature")
-        .getObservable();
+      return crmService.users().id(currentUser.UserId).select("dyn_signature").getObservable();
     }
   }, [currentUser])?.dyn_signature;
 
@@ -153,8 +149,8 @@ export const EmailEditor: FC<IEmailEditor2Props> = ({ value }) => {
           ["blockquote" as ButtonListDefaults, "list", "outdent", "indent"],
           ["fontColor", "hiliteColor"],
           ["horizontalRule", "table"],
-          ["template", "fullScreen", "codeView", "removeFormat"]
-        ]
+          ["template", "fullScreen", "codeView", "removeFormat"],
+        ],
       });
 
       mode === "edit" ? editor.enabled() : editor.disabled();

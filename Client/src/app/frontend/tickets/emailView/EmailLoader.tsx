@@ -5,6 +5,7 @@ import { Box, createStyles, makeStyles } from '@material-ui/core';
 import { navigate } from '@reach/router';
 
 import { ICrmService } from '../../../../services/crmService/CrmService';
+import { ICrmUser } from '../../../../services/crmService/models/ICrmUser';
 import { useDependency } from '../../../../services/dependencyContainer';
 import { systemUser } from '../../../../services/systemUser';
 import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
@@ -15,6 +16,7 @@ import { EmailView } from './EmailView';
 interface IEmailLoaderProps {
   ticketNumber: string;
   emailId: string | undefined;
+  users: ICrmUser[] | undefined;
 }
 
 const useStyles = makeStyles(() =>
@@ -23,18 +25,18 @@ const useStyles = makeStyles(() =>
       display: "flex",
       flex: 1,
       minWidth: 0,
-      height: "100%"
+      height: "100%",
     },
     router: {
       display: "flex",
       flex: 1,
       minHeight: 0,
-      width: "100%"
-    }
+      width: "100%",
+    },
   })
 );
 
-export const EmailLoader: FC<IEmailLoaderProps> = ({ ticketNumber, emailId }) => {
+export const EmailLoader: FC<IEmailLoaderProps> = ({ ticketNumber, emailId, users }) => {
   const styles = useStyles();
 
   const crmService = useDependency(ICrmService);
@@ -62,7 +64,7 @@ export const EmailLoader: FC<IEmailLoaderProps> = ({ ticketNumber, emailId }) =>
         "ken_supportlevel",
         "_dyn_accountexecutiveid_value",
         "_dyn_accountmanagerid_value",
-        "_owninguser_value"
+        "_owninguser_value",
       ])
       .expand("primarycontactid", ["contactid", "fullname", "ken_position", "ken_supportlevel", "ken_comment"])
       .getObservable()
@@ -93,7 +95,7 @@ export const EmailLoader: FC<IEmailLoaderProps> = ({ ticketNumber, emailId }) =>
   return (
     <Box className={styles.root}>
       {!ticket && <Loading />}
-      {ticket && emailId && <EmailView ticket={ticket} emailId={emailId} />}
+      {ticket && emailId && <EmailView ticket={ticket} emailId={emailId} users={users} />}
     </Box>
   );
 };

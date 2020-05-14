@@ -23,7 +23,7 @@ import {
     Theme,
     Tooltip
 } from '@material-ui/core';
-import { Alarm, Edit, FilterList, FlashOn, Person, Search } from '@material-ui/icons';
+import { Alarm, Cake, Edit, FilterList, FlashOn, Person, Search } from '@material-ui/icons';
 import { useMatch } from '@reach/router';
 
 import { experience } from '../../../appSettings.json';
@@ -44,7 +44,7 @@ import { EmailLoader } from './emailView/EmailLoader';
 import { TicketItem } from './TicketItem';
 import { TicketsFilterField } from './TicketsFilterField';
 
-type OrderBy = "modified" | "due" | "owner" | "priority";
+type OrderBy = "modified" | "due" | "created" | "owner" | "priority";
 
 enum TicketsTabs {
   Filter,
@@ -258,6 +258,14 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
               unassigned,
             },
           });
+        case "created":
+          return sortArray(tickets, {
+            by: ["unassigned", "createdon"],
+            order: [order, order],
+            computed: {
+              unassigned,
+            },
+          });
         case "owner":
           return sortArray(tickets, {
             by: ["unassigned", "name"],
@@ -400,6 +408,15 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
                     }
                   />
                   <FormControlLabel
+                    value="created"
+                    control={<Radio color="primary" />}
+                    label={
+                      <Tooltip title={ticketsTerms.created} aria-label={ticketsTerms.created}>
+                        <Cake className={styles.orderByIcon} />
+                      </Tooltip>
+                    }
+                  />
+                  <FormControlLabel
                     value="priority"
                     control={<Radio color="primary" />}
                     label={
@@ -471,7 +488,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
         ))}
       </PaneList>
       <Grid item zeroMinWidth className={styles.emailView} xs={"auto"}>
-        {ticketNumber && <EmailLoader ticketNumber={ticketNumber} emailId={emailId} />}
+        {ticketNumber && <EmailLoader ticketNumber={ticketNumber} emailId={emailId} users={users} />}
       </Grid>
     </Grid>
   );

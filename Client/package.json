@@ -1,7 +1,7 @@
 {
   "name": "klaudio-client",
   "niceName": "Klaudio",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "homepage": "/WebResources/ken_SimpleCRM",
   "description": "Klaudio is at your service. Klaudio is a tool to make it easy to use Dynamics CRM for Kentico Customer Success.",
   "private": true,

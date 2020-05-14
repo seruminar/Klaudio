@@ -1,5 +1,14 @@
 import Linkify from 'linkifyjs/react';
-import React, { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+    Dispatch,
+    FC,
+    memo,
+    SetStateAction,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState
+} from 'react';
 
 import {
     Avatar,
@@ -21,8 +30,10 @@ import {
     Cake,
     CallMade,
     CallReceived,
+    Cancel,
     Edit,
     HourglassEmpty,
+    NoteAdd,
     Visibility
 } from '@material-ui/icons';
 import { Autocomplete } from '@material-ui/lab';
@@ -34,6 +45,7 @@ import { ICrmService } from '../../../services/crmService/CrmService';
 import { ServiceStatus, ServiceType } from '../../../services/crmService/models/ICrmAccountService';
 import { ProductFamily } from '../../../services/crmService/models/ICrmCsProject';
 import { ICrmEmail } from '../../../services/crmService/models/ICrmEmail';
+import { ICrmNote } from '../../../services/crmService/models/ICrmNote';
 import { ICrmTag } from '../../../services/crmService/models/ICrmTag';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
 import { useDependency } from '../../../services/dependencyContainer';
@@ -44,6 +56,7 @@ import { wait } from '../../../utilities/promises';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
 import { ExpandablePanel } from '../../shared/ExpandablePanel';
+import { ExpandablePanelItemMode } from '../../shared/ExpandablePanelItem';
 import { Loading } from '../../shared/Loading';
 import { MultilineInput } from '../../shared/MultilineInput';
 import { TicketIcon } from './TicketIcon';
@@ -61,7 +74,8 @@ const useStyles = makeStyles((theme: Theme) =>
       margin: theme.spacing(1, 0),
     },
     panelItemButton: {
-      padding: theme.spacing(0.75),
+      margin: theme.spacing(0, 0.75),
+      padding: 0,
     },
     ticketEmail: {
       display: "flex",
@@ -77,7 +91,6 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     noteText: {
       whiteSpace: "pre-line",
-      overflowWrap: "break-word",
     },
     link: {
       color: theme.palette.type === "light" ? blue[500] : blue[200],
@@ -105,7 +118,8 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
     const styles = useStyles();
 
     const [ticketTags, setTicketTags] = useState<ICrmTag[]>();
-    const [noteMode, setNoteMode] = useState<NoteMode>("ready");
+    const [addNoteMode, setAddNoteMode] = useState<NoteMode>("ready");
+    const [editNoteMode, setEditNoteMode] = useState<NoteMode>("ready");
 
     const crmService = useDependency(ICrmService);
 
@@ -281,15 +295,29 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
     }, [accountServices]);
 
     const addNote = useCallback(async (value: string) => {
-      setNoteMode("loading");
+      setAddNoteMode("loading");
 
       // TEMPORARY
       await wait(1000);
 
-      setNoteMode("ready");
+      setAddNoteMode("ready");
 
       return "";
     }, []);
+
+    const editNote = useCallback(
+      (note: ICrmNote, setMode: Dispatch<SetStateAction<ExpandablePanelItemMode>>) => async (value: string) => {
+        setEditNoteMode("loading");
+
+        // TEMPORARY
+        await wait(1000);
+
+        setEditNoteMode("ready");
+
+        setMode("view");
+      },
+      []
+    );
 
     return (
       <>
@@ -366,7 +394,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                     target="_blank"
                     rel="noreferrer noopener"
                   >
-                    <IconButton edge="end" aria-label="delete" className={styles.panelItemButton}>
+                    <IconButton aria-label="delete" className={styles.panelItemButton}>
                       <Visibility />
                     </IconButton>
                   </Link>
@@ -387,7 +415,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 getRight={(recentTicket) => recentTicket.modifiedon && <DateFromNow date={recentTicket.modifiedon} />}
                 getAction={(recentTicket) => (
                   <RouteLink to={`${routes.base}${routes.tickets}/${recentTicket.ticketnumber}`}>
-                    <IconButton edge="end" aria-label="delete" className={styles.panelItemButton}>
+                    <IconButton aria-label="delete" className={styles.panelItemButton}>
                       <Visibility />
                     </IconButton>
                   </RouteLink>
@@ -422,56 +450,86 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 )}
                 getAction={(ticketEmail) => (
                   <RouteLink to={`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${ticketEmail.activityid}`}>
-                    <IconButton edge="end" aria-label="delete" className={styles.panelItemButton}>
+                    <IconButton aria-label="delete" className={styles.panelItemButton}>
                       <Visibility />
                     </IconButton>
                   </RouteLink>
                 )}
               />
             )}
-            {ticketNotes.length > 0 && (
-              <ExpandablePanel
-                label={
-                  <>
-                    <Typography variant="subtitle2">{account.ticketNotes}</Typography>
-                    <Typography variant="subtitle2">{ticketNotes.length}</Typography>
-                  </>
-                }
-                items={ticketNotes}
-                expanded
-                getHeading={(ticketNote) => ticketNote.modifiedby?.fullname}
-                getRight={(ticketNote) => <>{ticketNote.modifiedon && <DateFromNow date={ticketNote.modifiedon} />}</>}
-                getText={(ticketNote) =>
-                  ticketNote.notetext && (
-                    <>
-                      {ticketNote.subject && <Typography variant="subtitle2">{ticketNote.subject}</Typography>}
-                      <Typography variant="caption" color="textPrimary" className={styles.noteText}>
-                        <Linkify options={{ className: styles.link }}>{ticketNote.notetext}</Linkify>
-                      </Typography>
-                    </>
-                  )
-                }
-                getAction={(ticketNote) =>
-                  ticketNote.modifiedby?.systemuserid === currentUser?.UserId && (
-                    <Tooltip title={ticketTerms.editNote} aria-label={ticketTerms.editNote}>
-                      <IconButton edge="end" aria-label="delete" className={styles.panelItemButton}>
-                        <Edit />
-                      </IconButton>
-                    </Tooltip>
-                  )
-                }
-              />
-            )}
             <div className={styles.addNoteWrapper}>
-              {noteMode === "loading" && <Loading overlay small />}
+              {editNoteMode === "loading" && <Loading overlay small />}
+              {ticketNotes.length > 0 && (
+                <ExpandablePanel
+                  label={
+                    <>
+                      <Typography variant="subtitle2">{account.ticketNotes}</Typography>
+                      <Typography variant="subtitle2">{ticketNotes.length}</Typography>
+                    </>
+                  }
+                  items={ticketNotes}
+                  expanded
+                  getHeading={(ticketNote) => ticketNote.modifiedby?.fullname}
+                  getRight={(ticketNote) => <>{ticketNote.modifiedon && <DateFromNow date={ticketNote.modifiedon} />}</>}
+                  getAction={(ticketNote, mode, setMode) => {
+                    if (ticketNote.modifiedby?.systemuserid === currentUser?.UserId) {
+                      switch (mode) {
+                        case "edit":
+                          return (
+                            <Tooltip title={ticketTerms.cancel} aria-label={ticketTerms.cancel}>
+                              <IconButton aria-label="delete" className={styles.panelItemButton} onClick={() => setMode("view")}>
+                                <Cancel />
+                              </IconButton>
+                            </Tooltip>
+                          );
+                        default:
+                          return (
+                            <Tooltip title={ticketTerms.editNote} aria-label={ticketTerms.editNote}>
+                              <IconButton aria-label="delete" className={styles.panelItemButton} onClick={() => setMode("edit")}>
+                                <Edit />
+                              </IconButton>
+                            </Tooltip>
+                          );
+                      }
+                    }
+                  }}
+                  getText={(ticketNote, mode, setMode) => {
+                    switch (mode) {
+                      case "edit":
+                        return (
+                          <MultilineInput
+                            className={styles.addNote}
+                            value={ticketNote.notetext}
+                            actionLabel={ticketTerms.editNote}
+                            action={editNote(ticketNote, setMode)}
+                          />
+                        );
+
+                      default:
+                        return (
+                          <>
+                            {ticketNote.subject && <Typography variant="subtitle2">{ticketNote.subject}</Typography>}
+                            <Typography variant="caption" color="textPrimary" className={styles.noteText}>
+                              <Linkify options={{ className: styles.link }}>{ticketNote.notetext}</Linkify>
+                            </Typography>
+                          </>
+                        );
+                    }
+                  }}
+                />
+              )}
+            </div>
+            <div className={styles.addNoteWrapper}>
+              {addNoteMode === "loading" && <Loading overlay small />}
               <MultilineInput
                 className={styles.addNote}
                 placeholder={ticketTerms.addNote}
                 actionLabel={ticketTerms.addNote}
                 action={addNote}
+                actionButton={<NoteAdd />}
               />
             </div>
-            {ticketTags.length > 0 && <Divider className={styles.divider} />}
+            <Divider className={styles.divider} />
             {!allTags && <Loading />}
             {allTags && (
               <Autocomplete

@@ -1,30 +1,29 @@
-import React, { ReactElement, ReactNode, useState } from 'react';
+import React, { Dispatch, ReactElement, ReactNode, SetStateAction, useState } from 'react';
 
 import {
-    Avatar,
     Box,
     createStyles,
     ExpansionPanel,
     ExpansionPanelDetails,
     ExpansionPanelSummary,
     List,
-    ListItem,
     makeStyles,
-    Theme,
-    Typography
+    Theme
 } from '@material-ui/core';
 import { ExpandMore } from '@material-ui/icons';
 
+import { ExpandablePanelItem, ExpandablePanelItemMode } from './ExpandablePanelItem';
+
 interface IExpandablePanelProps<T> {
   label: ReactNode;
+  expanded?: boolean;
   items: T[] | undefined;
   selected?: (item: T) => boolean;
-  expanded?: boolean;
   getAvatar?: (item: T) => ReactNode;
   getHeading: (item: T) => ReactNode;
   getRight?: (item: T) => ReactNode;
-  getAction?: (item: T) => ReactNode;
-  getText?: (item: T) => ReactNode;
+  getAction?: (item: T, mode: ExpandablePanelItemMode, setMode: Dispatch<SetStateAction<ExpandablePanelItemMode>>) => ReactNode;
+  getText?: (item: T, mode: ExpandablePanelItemMode, setMode: Dispatch<SetStateAction<ExpandablePanelItemMode>>) => ReactNode;
 }
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -54,45 +53,18 @@ const useStyles = makeStyles((theme: Theme) =>
       width: "100%",
       maxHeight: theme.spacing(20),
     },
-    listItem: { padding: theme.spacing(0, 1.5, 0, 1), flexDirection: "column" },
-    listItemAvatar: {
-      width: theme.spacing(2.5),
-      height: theme.spacing(2.5),
-      marginRight: theme.spacing(0.5),
-      "& > svg": {
-        fontSize: ".75rem",
-      },
-    },
-    listItemHeader: {
-      display: "flex",
-      flexDirection: "row",
-      width: "100%",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    listItemHeading: {
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      flex: 1,
-      placeSelf: "center",
-      margin: theme.spacing(0.25, 0.5, 0.25, 0),
-    },
-    listItemContent: {
-      marginBottom: theme.spacing(1),
-    },
   })
 );
 
 export const ExpandablePanel: <T>(props: IExpandablePanelProps<T>) => ReactElement<IExpandablePanelProps<T>> = ({
   label,
-  getAction,
+  expanded,
   items,
   selected,
-  expanded,
   getAvatar,
   getHeading,
   getRight,
+  getAction,
   getText,
 }) => {
   const styles = useStyles();
@@ -113,21 +85,16 @@ export const ExpandablePanel: <T>(props: IExpandablePanelProps<T>) => ReactEleme
       <ExpansionPanelDetails className={styles.container}>
         <List className={styles.list}>
           {items?.map((item, index) => (
-            <ListItem key={index} dense alignItems="flex-start" className={styles.listItem} selected={selected && selected(item)}>
-              <Box className={styles.listItemHeader}>
-                {getAvatar && <Avatar className={styles.listItemAvatar}>{getAvatar(item)}</Avatar>}
-                <Typography variant="caption" color="textSecondary" className={styles.listItemHeading}>
-                  {getHeading(item)}
-                </Typography>
-                {getRight && getRight(item)}
-                {getAction && getAction(item)}
-              </Box>
-              {getText && (
-                <Typography className={styles.listItemContent} variant="body1">
-                  {getText(item)}
-                </Typography>
-              )}
-            </ListItem>
+            <ExpandablePanelItem
+              key={index}
+              item={item}
+              selected={selected}
+              getAvatar={getAvatar}
+              getHeading={getHeading}
+              getRight={getRight}
+              getAction={getAction}
+              getText={getText}
+            />
           ))}
         </List>
       </ExpansionPanelDetails>

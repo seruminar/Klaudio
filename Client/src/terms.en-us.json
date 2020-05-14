@@ -14,6 +14,7 @@
     "status": "Status",
     "priority": "Priority",
     "due": "Due",
+    "created": "Created",
     "modified": "Modified",
     "orderBy": "Order by",
     "orderByReverse": "Reverse",
@@ -27,7 +28,9 @@
     "unknown": "Unknown",
     "isSla": "Premium support",
     "addNote": "Add note",
-    "editNote": "Edit note"
+    "editNote": "Edit note",
+    "cancel": "Cancel",
+    "assignTo": "Assign to:"
   },
   "email": {
     "showDetails": "Show details",
@@ -137,6 +140,13 @@
       "6": "Pending send",
       "7": "Sending",
       "8": "Failed"
+    },
+    "userType": {
+      "supportplugin": "S",
+      "supportconsultingplugin": "SC",
+      "consultingplugin": "C",
+      "salesplugin": "SL",
+      "trainingplugin": "T"
     }
   },
   "files": {
