@@ -1,6 +1,6 @@
 import './app.scss';
 
-import React, { createContext, lazy, Suspense, useMemo, useState } from 'react';
+import React, { createContext, lazy, Suspense, useMemo } from 'react';
 import { boundary, useError } from 'react-boundary';
 import { Helmet } from 'react-helmet';
 
@@ -14,29 +14,31 @@ import {
     ThemeProvider
 } from '@material-ui/core';
 import { navigate, Router } from '@reach/router';
+import useLocalStorage from '@rehooks/local-storage';
 
 import { errors, header } from '../terms.en-us.json';
+import { LocalStorageKeys } from './frontend/LocalStorageKeys';
 import { routes } from './routes';
 import { Loading } from './shared/Loading';
 
-const Frontend = lazy(() => import("./frontend/Frontend").then(module => ({ default: module.Frontend })));
-const Error = lazy(() => import("./shared/Error").then(module => ({ default: module.Error })));
+const Frontend = lazy(() => import("./frontend/Frontend").then((module) => ({ default: module.Frontend })));
+const Error = lazy(() => import("./shared/Error").then((module) => ({ default: module.Error })));
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     router: {
       "& *::-webkit-scrollbar": {
-        width: theme.spacing(1)
+        width: theme.spacing(1),
       },
       "& *::-webkit-scrollbar-track": {
-        "-webkit-box-shadow": `inset 0 0 ${theme.spacing(1)}px rgba(0,0,0,0.00)`
+        "-webkit-box-shadow": `inset 0 0 ${theme.spacing(1)}px rgba(0,0,0,0.00)`,
       },
       "& *::-webkit-scrollbar-thumb": {
         backgroundColor: "rgba(0,0,0,.1)",
         borderRadius: theme.spacing(0.5),
-        outline: `${theme.spacing(0.125)}px solid slategrey`
-      }
-    }
+        outline: `${theme.spacing(0.125)}px solid slategrey`,
+      },
+    },
   })
 );
 
@@ -52,7 +54,7 @@ export const App = boundary(() => {
 
   const [error, info] = useError();
 
-  const [theme, setTheme] = useState<PaletteType>("light");
+  const [theme, setTheme] = useLocalStorage<PaletteType>(LocalStorageKeys.Theme, "light");
 
   let hasError = error || info ? true : false;
 
@@ -62,15 +64,15 @@ export const App = boundary(() => {
         palette: {
           type: theme,
           primary: {
-            main: "#388e3c"
+            main: "#388e3c",
           },
           secondary: {
-            main: "#9ccc65"
+            main: "#9ccc65",
           },
           text: {
-            primary: theme === "light" ? "rgba(0, 0, 0, 0.87)" : "rgba(255, 255, 255, 0.87)"
-          }
-        }
+            primary: theme === "light" ? "rgba(0, 0, 0, 0.87)" : "rgba(255, 255, 255, 0.87)",
+          },
+        },
       }),
     [theme]
   );
@@ -105,6 +107,7 @@ export const App = boundary(() => {
           <meta name="description" content={header.description} />
           <meta charSet="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
+          {process.env.NODE_ENV !== "development" && <link rel="shortcut icon" href={chrome.runtime.getURL("favicon.ico")} />}
           <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
           <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css" />
         </Helmet>

@@ -9,6 +9,7 @@ import React, {
     useMemo,
     useState
 } from 'react';
+import sortArray from 'sort-array';
 
 import {
     Avatar,
@@ -42,12 +43,13 @@ import { Link as RouteLink } from '@reach/router';
 import { experience } from '../../../appSettings.json';
 import { CrmEntity } from '../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../services/crmService/CrmService';
-import { ServiceStatus, ServiceType } from '../../../services/crmService/models/ICrmAccountService';
-import { ProductFamily } from '../../../services/crmService/models/ICrmCsProject';
 import { ICrmEmail } from '../../../services/crmService/models/ICrmEmail';
 import { ICrmNote } from '../../../services/crmService/models/ICrmNote';
 import { ICrmTag } from '../../../services/crmService/models/ICrmTag';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
+import { ProductFamily } from '../../../services/crmService/models/ProductFamily';
+import { ServiceStatus } from '../../../services/crmService/models/ServiceStatus';
+import { ServiceType } from '../../../services/crmService/models/ServiceType';
 import { useDependency } from '../../../services/dependencyContainer';
 import { systemUser } from '../../../services/systemUser';
 import { account, entityNames, ticket as ticketTerms } from '../../../terms.en-us.json';
@@ -294,6 +296,21 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
       }
     }, [accountServices]);
 
+    const logCreditTask = useCallback(() => {
+      if (accountServices) {
+        const validCreditsServices = accountServices
+          .filter((accountService) => accountService.ken_servicetype === ServiceType.Credits)
+          .filter((accountService) => accountService.statuscode === ServiceStatus.Purchased);
+
+        const bestCreditsService = sortArray(validCreditsServices, {
+          by: ["ken_expireson", "ken_remainingcredits"],
+          order: ["asc", "desc"],
+        })[0];
+
+        window.open(crmService.crmUrl(CrmEntity.AccountService).id(bestCreditsService.ken_serviceid).build(), "_blank");
+      }
+    }, [accountServices, crmService]);
+
     const addNote = useCallback(async (value: string) => {
       setAddNoteMode("loading");
 
@@ -341,7 +358,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 <Chip label={expiredCredits} className={styles.expiredCredits} />
               </Tooltip>
               <Tooltip title={account.credits.logCreditTask} aria-label={account.credits.logCreditTask}>
-                <IconButton aria-label={account.credits.logCreditTask}>
+                <IconButton aria-label={account.credits.logCreditTask} onClick={() => logCreditTask()}>
                   <AddCircle color="primary" />
                 </IconButton>
               </Tooltip>
@@ -394,7 +411,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                     target="_blank"
                     rel="noreferrer noopener"
                   >
-                    <IconButton aria-label="delete" className={styles.panelItemButton}>
+                    <IconButton className={styles.panelItemButton}>
                       <Visibility />
                     </IconButton>
                   </Link>
@@ -415,7 +432,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 getRight={(recentTicket) => recentTicket.modifiedon && <DateFromNow date={recentTicket.modifiedon} />}
                 getAction={(recentTicket) => (
                   <RouteLink to={`${routes.base}${routes.tickets}/${recentTicket.ticketnumber}`}>
-                    <IconButton aria-label="delete" className={styles.panelItemButton}>
+                    <IconButton className={styles.panelItemButton}>
                       <Visibility />
                     </IconButton>
                   </RouteLink>
@@ -450,7 +467,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 )}
                 getAction={(ticketEmail) => (
                   <RouteLink to={`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${ticketEmail.activityid}`}>
-                    <IconButton aria-label="delete" className={styles.panelItemButton}>
+                    <IconButton className={styles.panelItemButton}>
                       <Visibility />
                     </IconButton>
                   </RouteLink>
@@ -477,7 +494,11 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                         case "edit":
                           return (
                             <Tooltip title={ticketTerms.cancel} aria-label={ticketTerms.cancel}>
-                              <IconButton aria-label="delete" className={styles.panelItemButton} onClick={() => setMode("view")}>
+                              <IconButton
+                                aria-label={ticketTerms.cancel}
+                                className={styles.panelItemButton}
+                                onClick={() => setMode("view")}
+                              >
                                 <Cancel />
                               </IconButton>
                             </Tooltip>
@@ -485,7 +506,11 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                         default:
                           return (
                             <Tooltip title={ticketTerms.editNote} aria-label={ticketTerms.editNote}>
-                              <IconButton aria-label="delete" className={styles.panelItemButton} onClick={() => setMode("edit")}>
+                              <IconButton
+                                aria-label={ticketTerms.editNote}
+                                className={styles.panelItemButton}
+                                onClick={() => setMode("edit")}
+                              >
                                 <Edit />
                               </IconButton>
                             </Tooltip>

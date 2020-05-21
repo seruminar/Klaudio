@@ -4,6 +4,7 @@ export interface ICacheItem {
   observable: SubscriptionLike;
   refresh: NodeJS.Timeout | undefined;
 }
+
 export class CacheItem<T> {
   observable: BehaviorSubject<T>;
 
@@ -12,16 +13,20 @@ export class CacheItem<T> {
   constructor(
     observable: BehaviorSubject<T>,
     duration: number,
-    refresh: (observable: BehaviorSubject<T>) => Promise<void>,
-    remove: () => void
+    refresh: (observable: BehaviorSubject<T>) => Promise<T>,
+    remove: () => void,
+    shouldCache: (next: T) => boolean
   ) {
     this.observable = observable;
 
     if (duration > 0) {
       const timeout = () => {
-        if (this.observable.observers.length > 0) {
-          refresh(this.observable);
-          this.refresh = setTimeout(timeout, duration * 1000);
+        if (this.observable.observers.length) {
+          refresh(this.observable).then((next) => {
+            if (shouldCache(next)) {
+              this.refresh = setTimeout(timeout, duration * 1000);
+            }
+          });
           return;
         }
 

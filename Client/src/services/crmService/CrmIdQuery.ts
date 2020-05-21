@@ -15,7 +15,7 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
 
   private expandQuery: { [P in keyof T]?: string[] };
 
-  constructor(type: CrmEndpoint, id: Guid, cacheDuration?: number) {
+  constructor(type: keyof CrmEndpoint, id: Guid, cacheDuration?: number) {
     super(type, cacheDuration);
 
     this.id = id;
@@ -42,11 +42,11 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
   protected getRequest(request: Wretcher): Wretcher {
     request = request.url(`(${this.id})`);
 
-    if (this.selectFields.length > 0) {
+    if (this.selectFields.length) {
       request = request.query(`$select=${this.selectFields.join(",")}`);
     }
 
-    if (Object.keys(this.expandQuery).length > 0) {
+    if (Object.keys(this.expandQuery).length) {
       const expansions = [];
 
       for (const query in this.expandQuery) {

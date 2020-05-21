@@ -14,7 +14,7 @@ import {
 import { ExpandLess, ExpandMore } from '@material-ui/icons';
 
 import { ICrmService } from '../../../../services/crmService/CrmService';
-import { ContactPosition } from '../../../../services/crmService/models/ICrmContact';
+import { ContactPosition } from '../../../../services/crmService/models/ContactPosition';
 import { ICrmEmail } from '../../../../services/crmService/models/ICrmEmail';
 import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
 import { useDependency } from '../../../../services/dependencyContainer';
@@ -38,14 +38,14 @@ const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     more: {
       padding: 0,
-      marginLeft: theme.spacing(1)
+      marginLeft: theme.spacing(1),
     },
     metadata: {
-      margin: theme.spacing(0, 2)
+      margin: theme.spacing(0, 2),
     },
     contact: {
-      display: "flex"
-    }
+      display: "flex",
+    },
   })
 );
 
@@ -80,21 +80,13 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
 
   const amUser = useSubscriptionEffect(() => {
     if (ticket.customerid_account?._dyn_accountmanagerid_value) {
-      return crmService
-        .users()
-        .id(ticket.customerid_account._dyn_accountmanagerid_value)
-        .select("fullname", "domainname")
-        .getObservable();
+      return crmService.users().id(ticket.customerid_account._dyn_accountmanagerid_value).select("fullname", "domainname").getObservable();
     }
   }, [ticket.customerid_account]);
 
   const tsmUser = useSubscriptionEffect(() => {
     if (ticket.customerid_account?._owninguser_value) {
-      return crmService
-        .users()
-        .id(ticket.customerid_account._owninguser_value)
-        .select("fullname", "domainname")
-        .getObservable();
+      return crmService.users().id(ticket.customerid_account._owninguser_value).select("fullname", "domainname").getObservable();
     }
   }, [ticket.customerid_account]);
 
@@ -142,11 +134,11 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
           onClose={() => setPopoverEl(null)}
           anchorOrigin={{
             vertical: "bottom",
-            horizontal: "left"
+            horizontal: "left",
           }}
           transformOrigin={{
             vertical: "top",
-            horizontal: "left"
+            horizontal: "left",
           }}
         >
           {!(toEmails && ccEmails && bccEmails) && <Loading />}

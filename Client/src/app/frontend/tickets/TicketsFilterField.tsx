@@ -13,10 +13,10 @@ interface ITicketsFilterFieldProps {
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    itemCount: { flex: 1, textAlign: "right", fontSize: ".75rem" },
+    itemCount: { textAlign: "right", fontSize: ".75rem" },
     input: {
-      minWidth: "100% !important"
-    }
+      flex: 1,
+    },
   })
 );
 
@@ -27,15 +27,15 @@ export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, labe
     <Autocomplete
       classes={{ input: styles.input }}
       options={Object.keys(options)}
-      getOptionLabel={option => options[option]}
+      getOptionLabel={(option) => options[option]}
       renderOption={
         getCount &&
-        (option => {
+        ((option) => {
           const count = getCount(option);
 
           return (
             <>
-              <span>{options[option]}</span>
+              <span className={styles.input}>{options[option]}</span>
               {count !== undefined && count > 0 && <span className={styles.itemCount}>{count}</span>}
             </>
           );
@@ -43,7 +43,7 @@ export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, labe
       }
       value={value}
       onChange={(_event: any, newValue: string | null) => setValue(newValue)}
-      renderInput={params => {
+      renderInput={(params) => {
         const count = getCount ? getCount((params.inputProps as any).value) : 0;
 
         params.InputProps.endAdornment = (

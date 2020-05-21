@@ -10,7 +10,7 @@ export class CrmChildQuery<T extends ICrmEntity> extends CrmQuery<T> implements 
 
   private childName: string;
 
-  constructor(type: CrmEndpoint, cacheDuration: number, id: Guid, childName: string) {
+  constructor(type: keyof CrmEndpoint, cacheDuration: number, id: Guid, childName: string) {
     super(type, cacheDuration);
 
     this.parentId = id;

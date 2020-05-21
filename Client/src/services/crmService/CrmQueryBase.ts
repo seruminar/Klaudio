@@ -12,11 +12,13 @@ import { ICrmQueryBase } from './ICrmQueryBase';
 const observablesCache: { [url: string]: ICacheItem } = {};
 
 export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
-  protected type: CrmEndpoint;
+  protected type: keyof CrmEndpoint;
   protected cacheDuration: number;
 
-  constructor(type: CrmEndpoint, cacheDuration?: number) {
+  protected cacheCondition: (item: T) => boolean;
+  constructor(type: keyof CrmEndpoint, cacheDuration?: number) {
     this.type = type;
+    this.cacheCondition = () => true;
 
     if (cacheDuration) {
       this.cacheDuration = cacheDuration;
@@ -28,6 +30,11 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
   }
 
   protected abstract getRequest(request: Wretcher): Wretcher;
+  shouldCache(cacheCondition: (item: T) => boolean) {
+    this.cacheCondition = cacheCondition;
+
+    return this;
+  }
 
   getObservable(previousValue: T | undefined): BehaviorSubject<T | undefined> {
     const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}`).middlewares([retry()]));
@@ -42,9 +49,19 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
 
     const newObservable = new BehaviorSubject<T | undefined>(previousValue);
 
-    const getResponse = (observable: BehaviorSubject<T | undefined>) => this.getResponse(request).then((data) => observable.next(data));
+    const getResponse = (observable: BehaviorSubject<T | undefined>) =>
+      this.getResponse(request).then((data) => {
+        observable.next(data);
+        return data;
+      });
 
-    observablesCache[fullUrl] = new CacheItem(newObservable, this.cacheDuration, getResponse, () => delete observablesCache[fullUrl]);
+    observablesCache[fullUrl] = new CacheItem(
+      newObservable,
+      this.cacheDuration,
+      getResponse,
+      () => delete observablesCache[fullUrl],
+      (item) => (item ? this.cacheCondition(item) : true)
+    );
 
     getResponse(newObservable);
 

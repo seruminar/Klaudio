@@ -18,6 +18,7 @@
     "modified": "Modified",
     "orderBy": "Order by",
     "orderByReverse": "Reverse",
+    "unassignedFirst": "Unassigned First",
     "ticketNumber": "Ticket #",
     "expand": "Expand",
     "collapse": "Collapse"

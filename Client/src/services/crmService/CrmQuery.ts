@@ -18,7 +18,7 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
 
   private expandQuery: { [P in keyof T]?: string[] };
 
-  constructor(type: CrmEndpoint, cacheDuration?: number) {
+  constructor(type: keyof CrmEndpoint, cacheDuration?: number) {
     super(type, cacheDuration);
 
     this.topQuery = -1;
@@ -67,7 +67,7 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
       request = request.query(`$top=${this.topQuery}`);
     }
 
-    if (this.selectFields.length > 0) {
+    if (this.selectFields.length) {
       request = request.query(`$select=${this.selectFields.join(",")}`);
     }
 
@@ -79,7 +79,7 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
       request = request.query(`$orderby=${encodeURIComponent(this.orderByQuery)}`);
     }
 
-    if (Object.keys(this.expandQuery).length > 0) {
+    if (Object.keys(this.expandQuery).length) {
       const expansions = [];
 
       for (const query in this.expandQuery) {

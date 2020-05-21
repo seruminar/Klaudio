@@ -10,13 +10,14 @@ import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
 import { ICrmUser } from '../../../services/crmService/models/ICrmUser';
 import { useDependency } from '../../../services/dependencyContainer';
 import { email as emailTerms } from '../../../terms.en-us.json';
+import { wait } from '../../../utilities/promises';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
 import { Loading } from '../../shared/Loading';
 import { Menu } from '../../shared/Menu';
 import { TicketIcon } from './TicketIcon';
 
-const TicketDetails = lazy(() => import("./TicketDetails").then(module => ({ default: module.TicketDetails })));
+const TicketDetails = lazy(() => import("./TicketDetails").then((module) => ({ default: module.TicketDetails })));
 
 interface ITicketItemProps {
   ticket: ICrmTicket;
@@ -29,28 +30,28 @@ const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     metadata: {
       "& > *": {
-        margin: theme.spacing(0.5)
-      }
+        margin: theme.spacing(0.5),
+      },
     },
     icon: {
-      margin: theme.spacing(0, 1, 1, 0)
+      margin: theme.spacing(0, 1, 1, 0),
     },
     owner: {
       float: "right",
-      marginLeft: theme.spacing(1)
+      marginLeft: theme.spacing(1),
     },
     menu: {
       float: "right",
       padding: 0,
-      marginLeft: theme.spacing(1)
+      marginLeft: theme.spacing(1),
     },
     content: {
       margin: theme.spacing(0.75, 0),
       minWidth: 0,
       "& > div": {
-        width: "100%"
-      }
-    }
+        width: "100%",
+      },
+    },
   })
 );
 
@@ -80,7 +81,7 @@ export const TicketItem: FC<ITicketItemProps> = memo(
 
     useEffect(() => {
       if (ticketIsSelected(ticket)) {
-        scrollIntoView();
+        wait(200).then(() => scrollIntoView());
       }
     }, [scrollIntoView, ticket, ticketIsSelected]);
 
@@ -108,11 +109,8 @@ export const TicketItem: FC<ITicketItemProps> = memo(
                       { component: emailTerms.assignToMe },
                       {
                         component: emailTerms.openInCrm,
-                        target: crmService
-                          .crmUrl(CrmEntity.Ticket)
-                          .id(ticket.incidentid)
-                          .build()
-                      }
+                        target: crmService.crmUrl(CrmEntity.Ticket).id(ticket.incidentid).build(),
+                      },
                     ]}
                   />
                   <Typography variant="caption" className={styles.owner}>

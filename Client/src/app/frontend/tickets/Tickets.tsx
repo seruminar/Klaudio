@@ -25,6 +25,7 @@ import {
 } from '@material-ui/core';
 import { Alarm, Cake, Edit, FilterList, FlashOn, Person, Search } from '@material-ui/icons';
 import { useMatch } from '@reach/router';
+import { useLocalStorage } from '@rehooks/local-storage';
 
 import { experience } from '../../../appSettings.json';
 import { ICrmService } from '../../../services/crmService/CrmService';
@@ -40,6 +41,7 @@ import { RoutedFC } from '../../../utilities/routing';
 import { routes } from '../../routes';
 import { Loading } from '../../shared/Loading';
 import { PaneList } from '../../shared/PaneList';
+import { LocalStorageKeys } from '../LocalStorageKeys';
 import { EmailLoader } from './emailView/EmailLoader';
 import { TicketItem } from './TicketItem';
 import { TicketsFilterField } from './TicketsFilterField';
@@ -108,12 +110,13 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   const styles = useStyles();
 
   const [tab, setTab] = useState<TicketsTabs>(TicketsTabs.Filter);
-  const [ticketQueue, setTicketQueue] = useState<string>(TicketGroup.Support.toString());
-  const [ticketStatus, setTicketStatus] = useState<string>(TicketStatus.Queue.toString());
-  const [ticketPriority, setTicketPriority] = useState<string | null>(null);
-  const [ticketOwner, setTicketOwner] = useState<string | null>(null);
-  const [ticketOrderBy, setTicketOrderBy] = useState<OrderBy>("modified");
-  const [orderByReverse, setOrderByReverse] = useState(false);
+  const [ticketQueue, setTicketQueue] = useLocalStorage(LocalStorageKeys.TicketQueue, TicketGroup.Support.toString());
+  const [ticketPriority, setTicketPriority] = useLocalStorage<string | null>(LocalStorageKeys.TicketPriority, null);
+  const [ticketStatus, setTicketStatus] = useLocalStorage(LocalStorageKeys.TicketStatus, TicketStatus.Queue.toString());
+  const [ticketOwner, setTicketOwner] = useLocalStorage<string | null>(LocalStorageKeys.TicketOwner, null);
+  const [ticketOrderBy, setTicketOrderBy] = useLocalStorage<OrderBy>(LocalStorageKeys.TicketOrderBy, "modified");
+  const [orderByReverse, setOrderByReverse] = useLocalStorage(LocalStorageKeys.OrderByReverse, false);
+  const [unassignedFirst, setUnassignedFirst] = useLocalStorage(LocalStorageKeys.UnassignedFirst, true);
   const [searchTicketNumber, setSearchTicketNumber] = useState("");
   const [searchTicketNumberFilter, setSearchTicketNumberFilter] = useState<string>();
   const [searching, setSearching] = useState(false);
@@ -244,7 +247,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
       switch (ticketOrderBy) {
         case "modified":
           return sortArray(tickets, {
-            by: ["unassigned", "modifiedon"],
+            by: unassignedFirst ? ["unassigned", "modifiedon"] : ["modifiedon"],
             order: [order, order],
             computed: {
               unassigned,
@@ -252,7 +255,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
           });
         case "due":
           return sortArray(tickets, {
-            by: ["unassigned", "ken_sladuedate"],
+            by: unassignedFirst ? ["unassigned", "ken_sladuedate"] : ["ken_sladuedate"],
             order: [order, order],
             computed: {
               unassigned,
@@ -260,7 +263,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
           });
         case "created":
           return sortArray(tickets, {
-            by: ["unassigned", "createdon"],
+            by: unassignedFirst ? ["unassigned", "createdon"] : ["createdon"],
             order: [order, order],
             computed: {
               unassigned,
@@ -268,7 +271,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
           });
         case "owner":
           return sortArray(tickets, {
-            by: ["unassigned", "name"],
+            by: unassignedFirst ? ["unassigned", "name"] : ["name"],
             order: [order, order],
             computed: {
               unassigned,
@@ -278,7 +281,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
           });
         case "priority":
           return sortArray(tickets, {
-            by: ["unassigned", "priority"],
+            by: unassignedFirst ? ["unassigned", "priority"] : ["priority"],
             order: [order, order],
             computed: {
               unassigned,
@@ -302,7 +305,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
           });
       }
     }
-  }, [tickets, ticketOrderBy, orderByReverse]);
+  }, [tickets, ticketOrderBy, orderByReverse, unassignedFirst]);
 
   const changeTab = useCallback((_event: ChangeEvent<{}>, newValue: TicketsTabs) => {
     switch (newValue) {
@@ -334,7 +337,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
               label={ticketsTerms.queue}
               getCount={(value) =>
                 allTickets
-                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(value))
+                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt((TicketGroup as any)[value]))
                   .filter((ticket) => ticket.statuscode === parseInt(ticketStatus)).length
               }
               value={ticketQueue}
@@ -439,6 +442,10 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
               <FormControlLabel
                 control={<Switch color="primary" checked={orderByReverse} onChange={() => setOrderByReverse(!orderByReverse)} />}
                 label={ticketsTerms.orderByReverse}
+              />
+              <FormControlLabel
+                control={<Switch color="primary" checked={unassignedFirst} onChange={() => setUnassignedFirst(!unassignedFirst)} />}
+                label={ticketsTerms.unassignedFirst}
               />
             </FormGroup>
           </Box>

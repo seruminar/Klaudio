@@ -7,7 +7,7 @@ export class CrmEmailBodyQuery extends CrmQueryBase<string> implements ICrmEmail
   private emailId: Guid;
 
   constructor() {
-    super(undefined, 0);
+    super("emailbody");
     this.emailId = "";
   }
 

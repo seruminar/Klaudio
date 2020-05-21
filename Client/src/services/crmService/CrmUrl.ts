@@ -24,10 +24,18 @@ export class CrmUrl implements ICrmUrlBuilder {
     switch (this.type) {
       case CrmEntity.Ticket:
         url += `&id=${this.entityId}`;
-
         break;
+
       case CrmEntity.Jira:
         url += `&extraqs=%3fdyn_incident={${this.entityId}}`;
+        break;
+
+      case CrmEntity.AccountService:
+        url += `&id=${this.entityId}`;
+        break;
+
+      case CrmEntity.AccountServiceTask:
+        url += `&extraqs=%3f_CreateFromId={${this.entityId}}&_CreateFromType=10080`;
         break;
     }
     // url += `&newWindow=${this.openNewWindow}`;

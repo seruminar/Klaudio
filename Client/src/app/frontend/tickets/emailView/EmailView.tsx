@@ -25,8 +25,8 @@ import { AttachFile, FlashOn, PersonAdd, Reply, Send, Update } from '@material-u
 
 import { CrmEntity } from '../../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../../services/crmService/CrmService';
+import { EmailStatus } from '../../../../services/crmService/models/EmailStatus';
 import { ICrmAttachment } from '../../../../services/crmService/models/ICrmAttachment';
-import { EmailStatus } from '../../../../services/crmService/models/ICrmEmail';
 import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
 import { ICrmUser } from '../../../../services/crmService/models/ICrmUser';
 import { ParticipationType } from '../../../../services/crmService/models/ParticipationType';
@@ -134,7 +134,11 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
 
   const rawEmailContent = useSubscriptionEffect(() => {
     if (email?.activityid) {
-      return crmService.emailBody().id(email.activityid).getObservable();
+      return crmService
+        .emailBody()
+        .id(email.activityid)
+        .shouldCache(() => email.statuscode === EmailStatus.Draft)
+        .getObservable();
     }
   }, [email]);
 

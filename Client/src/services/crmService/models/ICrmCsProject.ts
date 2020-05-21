@@ -1,4 +1,5 @@
 import { ICrmEntity } from './ICrmEntity';
+import { ProductFamily } from './ProductFamily';
 
 enum ProjectType {
   CSEP = 281600000,
@@ -8,11 +9,6 @@ enum ProjectType {
   KK = 281600004,
   KK_EMS = 281600005,
 }
-export enum ProductFamily {
-  KK = 281600000,
-  EMS = 281600001,
-}
-
 export interface ICrmCsProject extends ICrmEntity {
   ken_csprojecttype: ProjectType;
   ken_productfamily: ProductFamily;

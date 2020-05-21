@@ -10,19 +10,20 @@ const blankManifest = {
   version: process.env.npm_package_version,
   description: process.env.npm_package_description,
   icons: { "16": "logo192.png", "48": "logo192.png", "128": "logo192.png" },
+  web_accessible_resources: ["favicon.ico"],
   browser_action: {
-    default_title: process.env.npm_package_niceName
+    default_title: process.env.npm_package_niceName,
   },
   background: {
-    scripts: []
+    scripts: [],
   },
   content_scripts: [
     {
       matches: ["https://kentico.crm4.dynamics.com/WebResources/ken_SimpleCRM/*"],
       css: [],
-      js: []
-    }
-  ]
+      js: [],
+    },
+  ],
 };
 
 const build = "./build";
@@ -66,16 +67,16 @@ const build = "./build";
   const output = createWriteStream(`${build}/build_${process.env.npm_package_version}.zip`);
 
   const archive = archiver("zip", {
-    zlib: { level: 9 }
+    zlib: { level: 9 },
   });
 
   archive.pipe(output);
 
   const packageFiles = ["favicon.ico", "logo192.png", "manifest.json"];
 
-  packageFiles.map(file => archive.file(`${build}/${file}`, { name: file }));
+  packageFiles.map((file) => archive.file(`${build}/${file}`, { name: file }));
 
-  archive.directory(`${build}/static`, "static", data => (data.name.indexOf(TEMP_responses) > -1 ? false : data));
+  archive.directory(`${build}/static`, "static", (data) => (data.name.indexOf(TEMP_responses) > -1 ? false : data));
 
   await archive.finalize();
 })();
