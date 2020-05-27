@@ -7,8 +7,7 @@ import {
     ExpansionPanelDetails,
     ExpansionPanelSummary,
     List,
-    makeStyles,
-    Theme
+    makeStyles
 } from '@material-ui/core';
 import { ExpandMore } from '@material-ui/icons';
 
@@ -26,7 +25,7 @@ interface IExpandablePanelProps<T> {
   getText?: (item: T, mode: ExpandablePanelItemMode, setMode: Dispatch<SetStateAction<ExpandablePanelItemMode>>) => ReactNode;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     root: {
       background: "none",

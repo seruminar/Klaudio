@@ -1,16 +1,16 @@
 import React, { FC, useEffect, useRef, useState } from 'react';
 
-import { createStyles, LinearProgress, makeStyles, Theme } from '@material-ui/core';
+import { createStyles, LinearProgress, makeStyles } from '@material-ui/core';
 import { Alert } from '@material-ui/lab';
 
 import { getSizeText, toRounded } from '../../../utilities/numbers';
 import { ISnack, IUpdateMessage } from './snacks';
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     root: {
-      width: "100%"
-    }
+      width: "100%",
+    },
   })
 );
 
@@ -23,10 +23,10 @@ export const Snack: FC<ISnack> = ({ type, content, update }) => {
   useEffect(() => {
     if (update) {
       const subscription = update.subscribe({
-        next: update => {
+        next: (update) => {
           setProgress(update);
           setDuration(Date.now() - startStamp.current);
-        }
+        },
       });
 
       return () => subscription.unsubscribe();

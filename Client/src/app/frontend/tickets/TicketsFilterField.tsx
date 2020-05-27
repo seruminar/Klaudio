@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 
-import { createStyles, makeStyles, TextField, Theme } from '@material-ui/core';
+import { createStyles, makeStyles, TextField } from '@material-ui/core';
 import { Autocomplete } from '@material-ui/lab';
 
 interface ITicketsFilterFieldProps {
@@ -11,7 +11,7 @@ interface ITicketsFilterFieldProps {
   setValue: (value: string | null) => void;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     itemCount: { textAlign: "right", fontSize: ".75rem" },
     input: {
@@ -44,7 +44,7 @@ export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, labe
       value={value}
       onChange={(_event: any, newValue: string | null) => setValue(newValue)}
       renderInput={(params) => {
-        const count = getCount ? getCount((params.inputProps as any).value) : 0;
+        const count = getCount && getCount(Object.keys(options).find((key) => options[key] === (params.inputProps as any).value)!);
 
         params.InputProps.endAdornment = (
           <span className={styles.itemCount}>

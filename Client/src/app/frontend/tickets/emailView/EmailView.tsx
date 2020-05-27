@@ -17,7 +17,6 @@ import {
     ListItemAvatar,
     ListItemText,
     makeStyles,
-    Theme,
     Tooltip,
     Typography
 } from '@material-ui/core';
@@ -27,6 +26,7 @@ import { CrmEntity } from '../../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../../services/crmService/CrmService';
 import { EmailStatus } from '../../../../services/crmService/models/EmailStatus';
 import { ICrmAttachment } from '../../../../services/crmService/models/ICrmAttachment';
+import { ICrmEmail } from '../../../../services/crmService/models/ICrmEmail';
 import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
 import { ICrmUser } from '../../../../services/crmService/models/ICrmUser';
 import { ParticipationType } from '../../../../services/crmService/models/ParticipationType';
@@ -57,6 +57,9 @@ import { IEmailRecipient } from './IEmailRecipient';
 interface IEmailContext {
   mode: EmailViewMode;
   setMode: (mode: EmailViewMode) => void;
+
+  ticket?: ICrmTicket;
+  email?: ICrmEmail;
 }
 
 export const EmailContext = createContext<IEmailContext>({
@@ -70,14 +73,13 @@ interface IEmailViewProps {
   users: ICrmUser[] | undefined;
 }
 
-export type EmailViewMode = "newReply" | "edit" | "view" | "viewDraft" | "loading";
+export type EmailViewMode = "newReply" | "edit" | "view" | "viewDraft" | "loading" | "editLoading";
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     emailContent: {
       minHeight: 0,
       flex: 1,
-      margin: theme.spacing(2, 0, 0),
       width: "100%",
       display: "flex",
       position: "relative",
@@ -124,7 +126,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
         .tickets()
         .id(ticketId)
         .children("Incident_Emails")
-        .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "torecipients")
+        .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "trackingtoken", "torecipients")
         .filter(`${emailFilter} and activityid eq ${emailId}`)
         .top(1)
         .orderBy("createdon desc")
@@ -338,7 +340,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
     [caseAttachments]
   );
 
-  const emailContext = { mode, setMode };
+  const emailContext = { mode, setMode, ticket, email };
 
   return (
     <>
@@ -392,14 +394,14 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
                   </IconButton>
                 </Tooltip>
               )}
-              {mode === "edit" && (
+              {(mode === "edit" || mode === "editLoading") && (
                 <Tooltip title={emailTerms.send} aria-label={emailTerms.send}>
                   <IconButton onClick={sendEmail(false)}>
                     <Send color="primary" />
                   </IconButton>
                 </Tooltip>
               )}
-              {mode === "edit" && (
+              {(mode === "edit" || mode === "editLoading") && (
                 <Tooltip title={emailTerms.sendKeepStatus} aria-label={emailTerms.send}>
                   <IconButton onClick={sendEmail(true)}>
                     <SendSave />
@@ -447,17 +449,17 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
                 ]}
               />
             </Grid>
-            {mode === "edit" && (
-              <ExpandableList className={styles.recipients} tooltip={[emailTerms.showCcBcc, emailTerms.hideCcBcc]}>
+            {(mode === "edit" || mode === "editLoading") && (
+              <ExpandableList className={styles.recipients} tooltip={[emailTerms.showCcBcc, emailTerms.hideCcBcc]} collapsedHeight={6}>
                 <EditableEmails value={toEmails} setValue={setToEmails} label={emailTerms.to} />
                 <EditableEmails value={ccEmails} setValue={setCcEmails} label={emailTerms.cc} />
                 <EditableEmails value={bccEmails} setValue={setBccEmails} label={emailTerms.bcc} />
               </ExpandableList>
             )}
-            <Grid>
+            <Grid className={styles.recipients}>
               {emailAttachments.length + otherAttachments.length > 0 && (
                 <ExpandableList showOverlay tooltip={[emailTerms.more, emailTerms.less]}>
-                  {mode === "edit" && (
+                  {(mode === "edit" || mode === "editLoading") && (
                     <Chip
                       className={styles.attachment}
                       clickable
@@ -504,7 +506,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
               )}
             </Grid>
             <Grid className={styles.emailContent}>
-              {(mode === "loading" || mode === "newReply") && <Loading overlay />}
+              {(mode === "loading" || mode === "newReply" || mode === "editLoading") && <Loading overlay />}
               {emailContent && <EmailEditor value={emailContent} />}
             </Grid>
           </Grid>

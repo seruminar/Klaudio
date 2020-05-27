@@ -20,7 +20,6 @@ import {
     Link,
     makeStyles,
     TextField,
-    Theme,
     Tooltip,
     Typography
 } from '@material-ui/core';
@@ -37,7 +36,7 @@ import {
     NoteAdd,
     Visibility
 } from '@material-ui/icons';
-import { Autocomplete } from '@material-ui/lab';
+import { Autocomplete, createFilterOptions } from '@material-ui/lab';
 import { Link as RouteLink } from '@reach/router';
 
 import { experience } from '../../../appSettings.json';
@@ -70,7 +69,7 @@ interface ITicketDetailsProps {
 
 type NoteMode = "loading" | "ready";
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     divider: {
       margin: theme.spacing(1, 0),
@@ -212,22 +211,15 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
       crmService.tickets().id(ticket.incidentid).children("incident_connections1").select("name").orderBy("name desc").getObservable()
     );
 
+    const allTags = useSubscription(
+      crmService.tags().select("dyn_name").filter(`statuscode eq 1 and ken_taggroup eq 281600002`).orderBy("dyn_name").getObservable()
+    );
+
     useEffect(() => {
       if (rawTicketTags) {
         setTicketTags(rawTicketTags.map((connection) => ({ dyn_tagid: "", dyn_name: connection.name })));
       }
     }, [rawTicketTags]);
-
-    const allTags = useSubscription(
-      crmService.tags().select("dyn_name").filter(`statuscode eq 1 and ken_taggroup eq 281600002`).orderBy("dyn_name").getObservable()
-    );
-
-    const ticketEmailIsSelected = useCallback(
-      (ticketEmail: ICrmEmail) => {
-        return emailId === ticketEmail.activityid;
-      },
-      [emailId]
-    );
 
     const notCreditsAccountServices = useMemo(
       () => accountServices?.filter((accountService) => accountService.ken_servicetype !== ServiceType.Credits),
@@ -295,6 +287,22 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
         return credits;
       }
     }, [accountServices]);
+
+    const tagFilterOptions = useMemo(
+      () =>
+        createFilterOptions<ICrmTag>({
+          limit: 10,
+          stringify: (option) => option.dyn_name.replace(" ", ""),
+        }),
+      []
+    );
+
+    const ticketEmailIsSelected = useCallback(
+      (ticketEmail: ICrmEmail) => {
+        return emailId === ticketEmail.activityid;
+      },
+      [emailId]
+    );
 
     const logCreditTask = useCallback(() => {
       if (accountServices) {
@@ -562,14 +570,15 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 size="small"
                 options={allTags}
                 filterSelectedOptions
+                classes={{ listbox: styles.tagList, option: styles.tagOption }}
                 getOptionLabel={(option) => option.dyn_name}
                 getOptionSelected={(option, value) => option.dyn_name === value.dyn_name}
+                renderInput={(params) => <TextField {...params} variant="outlined" label={account.caseTags} />}
                 value={ticketTags}
                 onChange={(_event: any, newValue: any) => {
                   setTicketTags((ticketTags) => (newValue ? newValue : ticketTags));
                 }}
-                classes={{ listbox: styles.tagList, option: styles.tagOption }}
-                renderInput={(params) => <TextField {...params} variant="outlined" label={account.caseTags} />}
+                filterOptions={tagFilterOptions}
               />
             )}
           </>

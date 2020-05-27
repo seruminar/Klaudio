@@ -7,7 +7,6 @@ import {
     IconButton,
     makeStyles,
     Popover,
-    Theme,
     Tooltip,
     Typography
 } from '@material-ui/core';
@@ -34,7 +33,7 @@ interface IEmailMetadataProps {
   bccEmails?: IEmailRecipient[];
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     more: {
       padding: 0,

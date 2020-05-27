@@ -1,18 +1,18 @@
 import React, { FC } from 'react';
 
-import { createStyles, makeStyles, Theme, Typography } from '@material-ui/core';
+import { createStyles, makeStyles, Typography } from '@material-ui/core';
 
 interface IEmailDetailLineProps {
   label: string;
   value: string;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     root: { margin: theme.spacing(0.5), maxWidth: theme.spacing(60) },
     partyChip: {
-      margin: theme.spacing(0, 0.5)
-    }
+      margin: theme.spacing(0, 0.5),
+    },
   })
 );
 

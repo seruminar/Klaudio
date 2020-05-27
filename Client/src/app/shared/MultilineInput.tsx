@@ -7,7 +7,6 @@ import {
     Input,
     InputLabel,
     makeStyles,
-    Theme,
     Tooltip
 } from '@material-ui/core';
 import { Check } from '@material-ui/icons';
@@ -18,12 +17,12 @@ interface IMultilineInputProps {
 
   value?: string;
   actionLabel?: string;
-  action?: (value: string) => Promise<string | void>;
+  action?: (value: string) => Promise<string | void> | string | void | Object;
 
   actionButton?: ReactNode;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     root: {
       display: "flex",
@@ -51,7 +50,14 @@ export const MultilineInput: FC<IMultilineInputProps> = ({
     <FormControl className={className}>
       <div className={styles.root}>
         {placeholder && <InputLabel>{placeholder}</InputLabel>}
-        <Input className={styles.input} multiline rowsMax={6} value={value} onChange={(event) => setValue(event.target.value)} />
+        <Input
+          className={styles.input}
+          multiline
+          autoComplete="on"
+          rowsMax={6}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+        />
         {value !== "" && action && (
           <>
             {actionLabel ? (
@@ -59,13 +65,28 @@ export const MultilineInput: FC<IMultilineInputProps> = ({
                 <IconButton
                   color="primary"
                   aria-label={actionLabel}
-                  onClick={(_) => action(value).then((value) => value !== undefined && setValue(value))}
+                  onClick={(_) => {
+                    const resolved = action(value);
+
+                    if (resolved !== undefined && resolved.hasOwnProperty("then")) {
+                      (resolved as PromiseLike<string | void>).then((value) => value !== undefined && setValue(value));
+                    }
+                  }}
                 >
                   {actionButton ? actionButton : <Check />}
                 </IconButton>
               </Tooltip>
             ) : (
-              <IconButton color="primary" onClick={(_) => action(value).then((value) => value !== undefined && setValue(value))}>
+              <IconButton
+                color="primary"
+                onClick={(_) => {
+                  const resolved = action(value);
+
+                  if (resolved !== undefined && resolved.hasOwnProperty("then")) {
+                    (resolved as PromiseLike<string | void>).then((value) => value !== undefined && setValue(value));
+                  }
+                }}
+              >
                 {actionButton ? actionButton : <Check />}
               </IconButton>
             )}

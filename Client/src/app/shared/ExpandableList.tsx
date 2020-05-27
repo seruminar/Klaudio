@@ -16,9 +16,10 @@ interface IExpandableListProps {
   tooltip?: [string, string];
   showOverlay?: boolean;
   className?: string;
+  collapsedHeight?: number;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles<Theme, IExpandableListProps>((theme) =>
   createStyles({
     root: {
       overflow: "hidden",
@@ -26,17 +27,17 @@ const useStyles = makeStyles((theme: Theme) =>
       maxHeight: theme.spacing(30),
       transition: theme.transitions.create("max-height", {
         easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.enteringScreen
-      })
+        duration: theme.transitions.duration.enteringScreen,
+      }),
     },
     container: {
-      maxHeight: theme.spacing(30)
+      maxHeight: theme.spacing(30),
     },
     collapsed: {
-      maxHeight: theme.spacing(8)
+      maxHeight: (props) => theme.spacing(props.collapsedHeight ?? 8),
     },
     scroll: { maxHeight: "100%" },
-    scrollExpanded: { overflowY: "scroll" },
+    scrollExpanded: { overflowY: "scroll", overflowX: "hidden" },
     overlay: {
       position: "absolute",
       width: "100%",
@@ -44,16 +45,16 @@ const useStyles = makeStyles((theme: Theme) =>
       bottom: 0,
       cursor: "pointer",
       background: `linear-gradient(0, ${theme.palette.background.default}, transparent)`,
-      zIndex: 100
+      zIndex: 100,
     },
     icon: {
-      zIndex: 200
-    }
+      zIndex: 200,
+    },
   })
 );
 
-export const ExpandableList: FC<IExpandableListProps> = ({ tooltip, showOverlay, className, children }) => {
-  const styles = useStyles();
+export const ExpandableList: FC<IExpandableListProps> = ({ tooltip, showOverlay, className, collapsedHeight, children }) => {
+  const styles = useStyles({ collapsedHeight });
 
   const [expanded, setExpanded] = useState(false);
   const [showExpand, setShowExpand] = useState(true);
@@ -85,7 +86,7 @@ export const ExpandableList: FC<IExpandableListProps> = ({ tooltip, showOverlay,
 
   return (
     <div className={clsx(styles.root, !expanded && showExpand && styles.collapsed, className)}>
-      <div className={clsx(showOverlay && !expanded && showExpand && styles.overlay)} onClick={_ => setExpanded(!expanded)} />
+      <div className={clsx(showOverlay && !expanded && showExpand && styles.overlay)} onClick={(_) => setExpanded(!expanded)} />
       <Grid container className={styles.container} wrap="nowrap">
         <Grid item sm className={clsx(styles.scroll, !(!expanded && showExpand) && styles.scrollExpanded)} ref={itemsRef}>
           {children}
@@ -94,12 +95,12 @@ export const ExpandableList: FC<IExpandableListProps> = ({ tooltip, showOverlay,
           {showExpand &&
             (tooltip && getLabel ? (
               <Tooltip title={getLabel} aria-label={getLabel}>
-                <IconButton onClick={_ => setExpanded(!expanded)} aria-label={getLabel}>
+                <IconButton onClick={(_) => setExpanded(!expanded)} aria-label={getLabel}>
                   {expanded ? <ExpandLess /> : <ExpandMore />}
                 </IconButton>
               </Tooltip>
             ) : (
-              <IconButton onClick={_ => setExpanded(!expanded)} aria-label={getLabel}>
+              <IconButton onClick={(_) => setExpanded(!expanded)} aria-label={getLabel}>
                 {expanded ? <ExpandLess /> : <ExpandMore />}
               </IconButton>
             ))}

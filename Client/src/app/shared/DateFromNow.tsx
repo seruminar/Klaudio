@@ -29,7 +29,7 @@ export const DateFromNow: FC<IDateFromNowProps> = ({ date, icon }) => {
     setTimeout(() => setPing(!ping), nextRender);
   }, [date, now, ping]);
 
-  const getDateString = useCallback((dateTimeString: Date | string) => new Date(dateTimeString).toDateString(), []);
+  const getDateString = useCallback((dateTimeString: Date | string) => moment(dateTimeString).format("LLL"), []);
 
   return (
     <Tooltip title={getDateString(date)} aria-label={getDateString(date)}>

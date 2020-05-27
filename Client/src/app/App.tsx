@@ -10,7 +10,6 @@ import {
     CssBaseline,
     makeStyles,
     PaletteType,
-    Theme,
     ThemeProvider
 } from '@material-ui/core';
 import { navigate, Router } from '@reach/router';
@@ -24,11 +23,12 @@ import { Loading } from './shared/Loading';
 const Frontend = lazy(() => import("./frontend/Frontend").then((module) => ({ default: module.Frontend })));
 const Error = lazy(() => import("./shared/Error").then((module) => ({ default: module.Error })));
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     router: {
       "& *::-webkit-scrollbar": {
         width: theme.spacing(1),
+        height: theme.spacing(1),
       },
       "& *::-webkit-scrollbar-track": {
         "-webkit-box-shadow": `inset 0 0 ${theme.spacing(1)}px rgba(0,0,0,0.00)`,
@@ -109,7 +109,6 @@ export const App = boundary(() => {
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           {process.env.NODE_ENV !== "development" && <link rel="shortcut icon" href={chrome.runtime.getURL("favicon.ico")} />}
           <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
-          <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css" />
         </Helmet>
         <Suspense fallback={<Loading />}>
           {hasError && <Error stack={`${error && error.stack}${info && info.componentStack}`} />}

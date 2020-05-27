@@ -12,7 +12,6 @@ import {
     ListItemIcon,
     ListItemText,
     makeStyles,
-    Theme,
     Tooltip
 } from '@material-ui/core';
 import { Brightness6, ChevronLeft, Mail, Menu } from '@material-ui/icons';
@@ -36,64 +35,64 @@ import {
 import { Snack } from './header/Snack';
 import { ISnack, showSnack } from './header/snacks';
 
-const Tickets = lazy(() => import("./tickets/Tickets").then(module => ({ default: module.Tickets })));
-const ById = lazy(() => import("./tickets/ById").then(module => ({ default: module.ById })));
-const Error = lazy(() => import("../shared/Error").then(module => ({ default: module.Error })));
+const Tickets = lazy(() => import("./tickets/Tickets").then((module) => ({ default: module.Tickets })));
+const ById = lazy(() => import("./tickets/ById").then((module) => ({ default: module.ById })));
+const Error = lazy(() => import("../shared/Error").then((module) => ({ default: module.Error })));
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     root: {
       display: "flex",
-      height: "100%"
+      height: "100%",
     },
     drawer: {
       flexShrink: 0,
-      whiteSpace: "nowrap"
+      whiteSpace: "nowrap",
     },
     drawerOpen: {
       width: theme.spacing(19),
       overflow: "hidden",
       transition: theme.transitions.create("width", {
         easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.enteringScreen
-      })
+        duration: theme.transitions.duration.enteringScreen,
+      }),
     },
     drawerClose: {
       transition: theme.transitions.create("width", {
         easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.leavingScreen
+        duration: theme.transitions.duration.leavingScreen,
       }),
       overflowX: "hidden",
       [theme.breakpoints.up("sm")]: {
-        width: theme.spacing(6.5)
-      }
+        width: theme.spacing(6.5),
+      },
     },
     snackBar: {
       position: "fixed",
       bottom: 0,
       zIndex: 1000,
-      fontSize: "3rem"
+      fontSize: "3rem",
     },
     fill: {
-      flex: 1
+      flex: 1,
     },
     menuItem: { padding: theme.spacing(1.75) },
     toolbar: {
       display: "flex",
       alignItems: "center",
-      justifyContent: "flex-end"
+      justifyContent: "flex-end",
     },
     content: {
       display: "flex",
       minWidth: 0,
       flexDirection: "column",
-      flex: 1
+      flex: 1,
     },
     router: {
       display: "flex",
       minHeight: 0,
-      flex: 1
-    }
+      flex: 1,
+    },
   })
 );
 
@@ -106,9 +105,9 @@ export const Frontend: RoutedFC = () => {
     showSnack(
       text,
       type,
-      snack => setSnacks(snacks => [...snacks, snack]),
+      (snack) => setSnacks((snacks) => [...snacks, snack]),
       wait(timeout || snackTimeout),
-      snack => setSnacks(snacks => deleteFrom(snack, snacks))
+      (snack) => setSnacks((snacks) => deleteFrom(snack, snacks))
     );
   };
 
@@ -116,9 +115,9 @@ export const Frontend: RoutedFC = () => {
     showSnack(
       text,
       "update",
-      snack => setSnacks(snacks => [...snacks, snack]),
+      (snack) => setSnacks((snacks) => [...snacks, snack]),
       isComplete.then(() => wait(snackTimeout)),
-      snack => setSnacks(snacks => deleteFrom(snack, snacks)),
+      (snack) => setSnacks((snacks) => deleteFrom(snack, snacks)),
       update
     );
   };
@@ -146,7 +145,7 @@ export const Frontend: RoutedFC = () => {
     showInfo,
     showInfoUntil,
     showWarning,
-    showError
+    showError,
   });
 
   const styles = useStyles();
@@ -163,7 +162,7 @@ export const Frontend: RoutedFC = () => {
     <MessageContext.Provider value={headerContext.current}>
       <div className={styles.root}>
         <div className={styles.snackBar}>
-          {snacks.map(snack => (
+          {snacks.map((snack) => (
             <Snack {...snack} />
           ))}
         </div>
@@ -171,7 +170,7 @@ export const Frontend: RoutedFC = () => {
           variant="permanent"
           className={clsx(styles.drawer, drawerOpen ? styles.drawerOpen : styles.drawerClose)}
           classes={{
-            paper: drawerOpen ? styles.drawerOpen : styles.drawerClose
+            paper: drawerOpen ? styles.drawerOpen : styles.drawerClose,
           }}
         >
           <div className={styles.toolbar}>

@@ -1,6 +1,6 @@
 import React, { FC, lazy, memo, Suspense, useCallback, useEffect, useRef } from 'react';
 
-import { createStyles, Grid, ListItem, makeStyles, Theme, Typography } from '@material-ui/core';
+import { createStyles, Grid, ListItem, makeStyles, Typography } from '@material-ui/core';
 import { Alarm, Cake, Edit } from '@material-ui/icons';
 import { navigate } from '@reach/router';
 
@@ -26,7 +26,7 @@ interface ITicketItemProps {
   owner?: ICrmUser;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     metadata: {
       "& > *": {

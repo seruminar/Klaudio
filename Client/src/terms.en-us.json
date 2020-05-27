@@ -18,7 +18,7 @@
     "modified": "Modified",
     "orderBy": "Order by",
     "orderByReverse": "Reverse",
-    "unassignedFirst": "Unassigned First",
+    "unassignedFirst": "Unassigned first",
     "ticketNumber": "Ticket #",
     "expand": "Expand",
     "collapse": "Collapse"
@@ -62,7 +62,28 @@
     "submitBug": "Submit a bug",
     "openInCrm": "Open in CRM",
     "addAttachment": "Add attachment",
-    "signatureDivider": "<br />------------------- Original Message -------------------<br /><br />"
+    "signatureDivider": "<br />------------------- Original Message -------------------<br /><br /><br />"
+  },
+  "editor": {
+    "undo": "Undo (Ctrl + Z)",
+    "redo": "Redo (Shift + Z)",
+    "bold": "Bold (Ctrl + B)",
+    "italic": "Italic  (Ctrl + I)",
+    "underline": "Underline  (Ctrl + U)",
+    "link": "Link",
+    "strikethrough": "Strikethrough  (Shift + 7)",
+    "superscript": "Superscript (Shift + 6)",
+    "subscript": "Subscript (Shift + 5)",
+    "orderedList": "Ordered list (Shift + 9)",
+    "unorderedList": "Unordered list (Shift + 8)",
+    "increaseIndent": "Increase indent (Ctrl + ])",
+    "decreaseIndent": "Decrease indent (Ctrl + [)",
+    "code": "Code",
+    "quote": "Quote",
+    "fontColor": "Font color",
+    "backgroundColor": "Highlight color",
+    "cannedResponse": "Canned response",
+    "clearFormat": "Clear format"
   },
   "account": {
     "csProjects": "Customer Success projects",

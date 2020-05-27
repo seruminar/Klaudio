@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import React, { FC, useMemo } from 'react';
 
-import { Avatar, createStyles, makeStyles, Theme, Tooltip } from '@material-ui/core';
+import { Avatar, createStyles, makeStyles, Tooltip } from '@material-ui/core';
 import {
     amber,
     blue,
@@ -23,43 +23,43 @@ interface ITicketIconProps {
   className?: string;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     metadata: {
       whiteSpace: "nowrap",
       "& > *": {
-        margin: theme.spacing(0.5)
-      }
+        margin: theme.spacing(0.5),
+      },
     },
     premium: {
-      background: indigo["A700"]
+      background: indigo["A700"],
     },
     fireFighting: {
       background: `repeating-linear-gradient(135deg, ${amber[600]} 0 ${theme.spacing(0.25)}px, ${deepOrange[200]} ${theme.spacing(
         0.25
-      )}px ${theme.spacing(0.75)}px)`
+      )}px ${theme.spacing(0.75)}px)`,
     },
     doNotProvideSupport: {
-      background: red[600]
+      background: red[600],
     },
     important: {
-      background: orange[800]
+      background: orange[800],
     },
     vip: {
-      background: yellow[600]
+      background: yellow[600],
     },
     prospect: {
-      background: green[500]
+      background: green[500],
     },
     newcomer: {
-      background: green["A400"]
+      background: green["A400"],
     },
     kenticoCloud: {
-      background: blue["A400"]
+      background: blue["A400"],
     },
     unknown: {
-      background: red[200]
-    }
+      background: red[200],
+    },
   })
 );
 
@@ -114,7 +114,7 @@ export const TicketIcon: FC<ITicketIconProps> = ({ ticket, className }) => {
     styles.vip,
     ticket.dyn_issla,
     ticket.customerid_account,
-    ticket.prioritycode
+    ticket.prioritycode,
   ]);
 
   const ticketPriority = useMemo(() => {

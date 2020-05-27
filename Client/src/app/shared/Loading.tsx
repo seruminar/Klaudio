@@ -1,31 +1,31 @@
 import React, { FC } from 'react';
 
-import { CircularProgress, createStyles, makeStyles, Theme } from '@material-ui/core';
+import { CircularProgress, createStyles, makeStyles } from '@material-ui/core';
 
 interface ILoadingProps {
   overlay?: boolean;
   small?: boolean;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     space: {
       display: "flex",
       justifyContent: "center",
       height: "100%",
-      width: "100%"
+      width: "100%",
     },
     column: {
       flexDirection: "column",
       margin: theme.spacing(2),
       display: "flex",
-      justifyContent: "center"
+      justifyContent: "center",
     },
     smallColumn: {
       flexDirection: "column",
       margin: theme.spacing(1),
       display: "flex",
-      justifyContent: "center"
+      justifyContent: "center",
     },
     overlay: {
       display: "flex",
@@ -34,9 +34,9 @@ const useStyles = makeStyles((theme: Theme) =>
       position: "absolute",
       width: "100%",
       "&+ *": {
-        opacity: 0.5
-      }
-    }
+        opacity: 0.5,
+      },
+    },
   })
 );
 

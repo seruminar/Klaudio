@@ -20,7 +20,6 @@ import {
     Tab,
     Tabs,
     TextField,
-    Theme,
     Tooltip
 } from '@material-ui/core';
 import { Alarm, Cake, Edit, FilterList, FlashOn, Person, Search } from '@material-ui/icons';
@@ -58,11 +57,11 @@ interface ITicketsProps {
   emailId: string;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     search: {
       height: "100%",
-      maxWidth: theme.spacing(32),
+      maxWidth: theme.spacing(29),
       borderRight: `${theme.spacing(0.1)}px solid ${theme.palette.divider}`,
     },
     emailView: {
@@ -337,7 +336,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
               label={ticketsTerms.queue}
               getCount={(value) =>
                 allTickets
-                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt((TicketGroup as any)[value]))
+                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(value))
                   .filter((ticket) => ticket.statuscode === parseInt(ticketStatus)).length
               }
               value={ticketQueue}

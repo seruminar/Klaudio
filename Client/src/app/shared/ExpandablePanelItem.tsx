@@ -1,14 +1,6 @@
 import React, { Dispatch, ReactElement, ReactNode, SetStateAction, useState } from 'react';
 
-import {
-    Avatar,
-    Box,
-    createStyles,
-    ListItem,
-    makeStyles,
-    Theme,
-    Typography
-} from '@material-ui/core';
+import { Avatar, Box, createStyles, ListItem, makeStyles, Typography } from '@material-ui/core';
 
 export type ExpandablePanelItemMode = "view" | "edit";
 
@@ -22,7 +14,7 @@ interface IExpandablePanelItemProps<T> {
   getText?: (item: T, mode: ExpandablePanelItemMode, setMode: Dispatch<SetStateAction<ExpandablePanelItemMode>>) => ReactNode;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     root: { padding: theme.spacing(0.5, 0.5, 0.5, 1), flexDirection: "column", wordBreak: "break-word" },
     avatar: {

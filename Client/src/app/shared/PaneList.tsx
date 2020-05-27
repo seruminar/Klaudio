@@ -1,15 +1,7 @@
 import clsx from 'clsx';
 import React, { FC, useMemo, useState } from 'react';
 
-import {
-    createStyles,
-    Grid,
-    IconButton,
-    List,
-    makeStyles,
-    Theme,
-    Tooltip
-} from '@material-ui/core';
+import { createStyles, Grid, IconButton, List, makeStyles, Tooltip } from '@material-ui/core';
 import { ChevronLeft, ChevronRight } from '@material-ui/icons';
 
 interface IPaneListProps {
@@ -17,42 +9,42 @@ interface IPaneListProps {
   expanded?: boolean;
 }
 
-const useStyles = makeStyles((theme: Theme) =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     pane: {
       display: "flex",
       height: "100%",
       position: "relative",
-      width: theme.spacing(52),
+      width: theme.spacing(50),
       flexDirection: "column",
       borderRight: `${theme.spacing(0.1)}px solid ${theme.palette.divider}`,
       transition: theme.transitions.create("width", {
         easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.enteringScreen
-      })
+        duration: theme.transitions.duration.enteringScreen,
+      }),
     },
     paneClosed: {
       width: theme.spacing(9),
       transition: theme.transitions.create("width", {
         easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.leavingScreen
-      })
+        duration: theme.transitions.duration.leavingScreen,
+      }),
     },
     paneHeader: {
       borderBottom: `${theme.spacing(0.1)}px solid ${theme.palette.divider}`,
-      textAlign: "right"
+      textAlign: "right",
     },
     paneListHolder: {
       height: `calc(100% - ${theme.spacing(6)}px)`,
       position: "relative",
       overflowX: "hidden",
-      overflowY: "scroll"
+      overflowY: "scroll",
     },
     paneList: {
       padding: 0,
-      width: theme.spacing(51),
+      width: theme.spacing(49),
       position: "absolute",
-      height: "100%"
+      height: "100%",
     },
     overlay: {
       position: "absolute",
@@ -61,8 +53,8 @@ const useStyles = makeStyles((theme: Theme) =>
       bottom: 0,
       cursor: "pointer",
       background: `linear-gradient(-90deg, ${theme.palette.background.default}, transparent)`,
-      zIndex: 100
-    }
+      zIndex: 100,
+    },
   })
 );
 
