@@ -22,4 +22,8 @@ export class CrmChildQuery<T extends ICrmEntity> extends CrmQuery<T> implements 
 
     return super.getRequest(request);
   }
+
+  protected getDependencies() {
+    return [this.type, this.childName];
+  }
 }

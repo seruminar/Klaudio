@@ -12,11 +12,11 @@ import {
 } from '@material-ui/core';
 import { ExpandLess, ExpandMore } from '@material-ui/icons';
 
+import { useDependency } from '../../../../dependencyContainer';
 import { ICrmService } from '../../../../services/crmService/CrmService';
 import { ContactPosition } from '../../../../services/crmService/models/ContactPosition';
 import { ICrmEmail } from '../../../../services/crmService/models/ICrmEmail';
 import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
-import { useDependency } from '../../../../services/dependencyContainer';
 import { email as emailTerms, entityNames } from '../../../../terms.en-us.json';
 import { useSubscriptionEffect } from '../../../../utilities/observables';
 import { Loading } from '../../../shared/Loading';

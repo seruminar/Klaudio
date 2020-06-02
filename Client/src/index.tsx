@@ -12,4 +12,4 @@ root.id = "root";
 document.body.textContent = "";
 document.body.append(root);
 
-render(<App />, document.getElementById("root"));
+render(<App />, root);

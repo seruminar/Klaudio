@@ -4,9 +4,9 @@ import useAsyncEffect from 'use-async-effect';
 import { Box, createStyles, makeStyles } from '@material-ui/core';
 import { navigate } from '@reach/router';
 
+import { useDependency } from '../../../../dependencyContainer';
 import { ICrmService } from '../../../../services/crmService/CrmService';
 import { ICrmUser } from '../../../../services/crmService/models/ICrmUser';
-import { useDependency } from '../../../../services/dependencyContainer';
 import { systemUser } from '../../../../services/systemUser';
 import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
 import { routes } from '../../../routes';

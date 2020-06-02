@@ -44,6 +44,7 @@ const useStyles = makeStyles((theme) =>
       justifyContent: "space-between",
       width: "100%",
       padding: theme.spacing(0, 1, 0, 0),
+      alignItems: "center",
     },
     container: { padding: theme.spacing(0.5) },
     list: {

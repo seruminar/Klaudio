@@ -31,7 +31,8 @@
     "addNote": "Add note",
     "editNote": "Edit note",
     "cancel": "Cancel",
-    "assignTo": "Assign to:"
+    "assignTo": "Assign to:",
+    "latestEmail": "Go to latest"
   },
   "email": {
     "showDetails": "Show details",

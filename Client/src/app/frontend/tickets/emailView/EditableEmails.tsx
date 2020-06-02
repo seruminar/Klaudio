@@ -1,4 +1,4 @@
-import React, { Dispatch, FC, SetStateAction } from 'react';
+import React, { ChangeEvent, Dispatch, FC, SetStateAction } from 'react';
 
 import { TextField } from '@material-ui/core';
 import { Autocomplete } from '@material-ui/lab';
@@ -23,7 +23,7 @@ export const EditableEmails: FC<IEditableEmailsProps> = ({ value, setValue, labe
       options={[] as IEmailRecipient[]}
       getOptionLabel={getRecipientLabel}
       value={value}
-      onChange={(_event: any, newValue: IEmailRecipient[] | null) => {
+      onChange={(_event: ChangeEvent<{}>, newValue: (string | IEmailRecipient)[] | null) => {
         if (newValue) {
           setValue(
             newValue.map((recipient: IEmailRecipient | string) =>
@@ -32,7 +32,7 @@ export const EditableEmails: FC<IEditableEmailsProps> = ({ value, setValue, labe
           );
         }
       }}
-      renderInput={params => <TextField label={label} {...params} />}
+      renderInput={(params) => <TextField label={label} {...params} />}
     />
   );
 };

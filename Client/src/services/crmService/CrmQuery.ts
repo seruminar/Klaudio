@@ -1,5 +1,7 @@
-import { Wretcher } from 'wretch';
+import wretch, { Wretcher } from 'wretch';
+import { retry } from 'wretch-middlewares';
 
+import { context } from '../../appSettings.json';
 import { CrmApiResponse } from './CrmApiResponse';
 import { CrmEndpoint } from './CrmEndpoint';
 import { CrmIdQuery } from './CrmIdQuery';
@@ -62,6 +64,12 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
     return this;
   }
 
+  insert(data: Partial<T>) {
+    const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}`).middlewares([retry()]));
+
+    return request.post(data);
+  }
+
   protected getRequest(request: Wretcher): Wretcher {
     if (this.topQuery > -1) {
       request = request.query(`$top=${this.topQuery}`);
@@ -92,6 +100,10 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
     }
 
     return request;
+  }
+
+  protected getDependencies(): (string | keyof CrmEndpoint)[] {
+    return [this.type];
   }
 
   async sendRequest(request: Wretcher) {

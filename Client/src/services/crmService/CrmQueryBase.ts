@@ -3,13 +3,13 @@ import wretch, { Wretcher } from 'wretch';
 import { retry } from 'wretch-middlewares';
 
 import { context } from '../../appSettings.json';
+import { useDependency } from '../../dependencyContainer';
 import { wait } from '../../utilities/promises';
-import { CacheItem, ICacheItem } from '../CacheItem';
+import { CacheItem } from '../CacheItem';
 import { cacheDurations } from './cacheDurations';
 import { CrmEndpoint } from './CrmEndpoint';
+import { ICrmServiceCache } from './CrmServiceCache';
 import { ICrmQueryBase } from './ICrmQueryBase';
-
-const observablesCache: { [url: string]: ICacheItem } = {};
 
 export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
   protected type: keyof CrmEndpoint;
@@ -30,6 +30,8 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
   }
 
   protected abstract getRequest(request: Wretcher): Wretcher;
+  protected abstract getDependencies(): (string | keyof CrmEndpoint)[];
+
   shouldCache(cacheCondition: (item: T) => boolean) {
     this.cacheCondition = cacheCondition;
 
@@ -41,7 +43,9 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
 
     const fullUrl = request._url;
 
-    let cacheItem = observablesCache[fullUrl];
+    const observablesCache = useDependency(ICrmServiceCache);
+
+    let cacheItem = observablesCache.get(fullUrl);
 
     if (cacheItem) {
       return cacheItem.observable as BehaviorSubject<T | undefined>;
@@ -55,12 +59,16 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
         return data;
       });
 
-    observablesCache[fullUrl] = new CacheItem(
-      newObservable,
-      this.cacheDuration,
-      getResponse,
-      () => delete observablesCache[fullUrl],
-      (item) => (item ? this.cacheCondition(item) : true)
+    observablesCache.add(
+      fullUrl,
+      new CacheItem(
+        newObservable,
+        this.cacheDuration,
+        this.getDependencies(),
+        getResponse,
+        () => observablesCache.remove(fullUrl),
+        (item) => (item ? this.cacheCondition(item) : true)
+      )
     );
 
     getResponse(newObservable);

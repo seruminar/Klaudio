@@ -16,6 +16,7 @@ import {
     Chip,
     createStyles,
     Divider,
+    Grid,
     IconButton,
     Link,
     makeStyles,
@@ -33,6 +34,7 @@ import {
     Cancel,
     Edit,
     HourglassEmpty,
+    LastPage,
     NoteAdd,
     Visibility
 } from '@material-ui/icons';
@@ -40,8 +42,10 @@ import { Autocomplete, createFilterOptions } from '@material-ui/lab';
 import { Link as RouteLink } from '@reach/router';
 
 import { experience } from '../../../appSettings.json';
+import { useDependency } from '../../../dependencyContainer';
 import { CrmEntity } from '../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../services/crmService/CrmService';
+import { ICrmServiceCache } from '../../../services/crmService/CrmServiceCache';
 import { ICrmEmail } from '../../../services/crmService/models/ICrmEmail';
 import { ICrmNote } from '../../../services/crmService/models/ICrmNote';
 import { ICrmTag } from '../../../services/crmService/models/ICrmTag';
@@ -49,7 +53,6 @@ import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
 import { ProductFamily } from '../../../services/crmService/models/ProductFamily';
 import { ServiceStatus } from '../../../services/crmService/models/ServiceStatus';
 import { ServiceType } from '../../../services/crmService/models/ServiceType';
-import { useDependency } from '../../../services/dependencyContainer';
 import { systemUser } from '../../../services/systemUser';
 import { account, entityNames, ticket as ticketTerms } from '../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
@@ -81,9 +84,29 @@ const useStyles = makeStyles((theme) =>
     ticketEmail: {
       display: "flex",
     },
-    remainingCredits: { color: theme.palette.type === "light" ? green[500] : green[200] },
-    totalCredits: { color: theme.palette.type === "light" ? blue[500] : blue[200] },
-    expiredCredits: { color: theme.palette.type === "light" ? red[500] : red[200] },
+    statusCredits: { alignItems: "center" },
+    status: { height: theme.spacing(3) },
+    spacer: {
+      flex: 1,
+    },
+    remainingCredits: { backgroundColor: "initial", color: theme.palette.type === "light" ? green[500] : green[200] },
+    totalCredits: { backgroundColor: "initial", color: theme.palette.type === "light" ? blue[500] : blue[200] },
+    expiredCredits: { backgroundColor: "initial", color: theme.palette.type === "light" ? red[500] : red[200] },
+    logCreditTask: { padding: theme.spacing(0.25) },
+    latestEmailWrapper: { display: "flex", alignItems: "center" },
+    latestEmailLink: { textDecoration: "none", margin: theme.spacing(0, 1, 0, 0) },
+    latestEmailButton: {
+      backgroundColor: theme.palette.primary.main,
+      margin: theme.spacing(0.5),
+      padding: theme.spacing(0.25, 0.75),
+      borderRadius: theme.spacing(0.5),
+      display: "flex",
+      color: theme.palette.common.white,
+      "& > span": {
+        fontSize: theme.spacing(1.5),
+        lineHeight: `${theme.spacing(3.125)}px`,
+      },
+    },
     addNoteWrapper: {
       position: "relative",
     },
@@ -111,6 +134,9 @@ const useStyles = makeStyles((theme) =>
       fontSize: ".8rem",
       padding: theme.spacing(0.5, 2),
     },
+    noTags: {
+      padding: "initial",
+    },
   })
 );
 
@@ -123,6 +149,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
     const [editNoteMode, setEditNoteMode] = useState<NoteMode>("ready");
 
     const crmService = useDependency(ICrmService);
+    const crmServiceCache = useDependency(ICrmServiceCache);
 
     const csProjects = useSubscriptionEffect(() => {
       if (ticket.customerid_account) {
@@ -319,16 +346,21 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
       }
     }, [accountServices, crmService]);
 
-    const addNote = useCallback(async (value: string) => {
-      setAddNoteMode("loading");
+    const addNote = useCallback(
+      async (value: string) => {
+        setAddNoteMode("loading");
 
-      // TEMPORARY
-      await wait(1000);
+        // TEMPORARY
+        await crmService.notes().insert({ notetext: value, "objectid_incident@odata.bind": `/incidents(${ticket.incidentid})` });
+        await wait(1000);
+        crmServiceCache.refresh("Incident_Annotation");
 
-      setAddNoteMode("ready");
+        setAddNoteMode("ready");
 
-      return "";
-    }, []);
+        return "";
+      },
+      [crmService, ticket.incidentid, crmServiceCache]
+    );
 
     const editNote = useCallback(
       (note: ICrmNote, setMode: Dispatch<SetStateAction<ExpandablePanelItemMode>>) => async (value: string) => {
@@ -336,12 +368,13 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
 
         // TEMPORARY
         await wait(1000);
+        crmServiceCache.refresh("Incident_Annotation");
 
         setEditNoteMode("ready");
 
         setMode("view");
       },
-      []
+      [crmServiceCache]
     );
 
     return (
@@ -352,25 +385,33 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
         {ticket.customerid_account && !(accountServices && csProjects && recentTickets) && <Loading />}
         {ticket.customerid_account && accountServices && csProjects && recentTickets && (
           <>
-            <Typography variant="subtitle1" align="center">
-              {account.credits.label}
-              <Tooltip title={account.credits.remaining} aria-label={account.credits.remaining}>
-                <Chip label={remainingCredits} className={styles.remainingCredits} />
-              </Tooltip>
-              /
-              <Tooltip title={account.credits.total} aria-label={account.credits.total}>
-                <Chip label={totalCredits} className={styles.totalCredits} />
-              </Tooltip>
-              /
-              <Tooltip title={account.credits.expired} aria-label={account.credits.expired}>
-                <Chip label={expiredCredits} className={styles.expiredCredits} />
-              </Tooltip>
-              <Tooltip title={account.credits.logCreditTask} aria-label={account.credits.logCreditTask}>
-                <IconButton aria-label={account.credits.logCreditTask} onClick={() => logCreditTask()}>
-                  <AddCircle color="primary" />
-                </IconButton>
-              </Tooltip>
-            </Typography>
+            <Grid container className={styles.statusCredits}>
+              <Grid item>
+                {ticket.statuscode && (
+                  <Chip color="primary" className={styles.status} label={entityNames.ticketStatus[ticket.statuscode]} />
+                )}
+              </Grid>
+              <Grid item className={styles.spacer} />
+              <Grid item>
+                {account.credits.label}
+                <Tooltip title={account.credits.remaining} aria-label={account.credits.remaining}>
+                  <Chip label={remainingCredits} className={styles.remainingCredits} />
+                </Tooltip>
+                |
+                <Tooltip title={account.credits.total} aria-label={account.credits.total}>
+                  <Chip label={totalCredits} className={styles.totalCredits} />
+                </Tooltip>
+                |
+                <Tooltip title={account.credits.expired} aria-label={account.credits.expired}>
+                  <Chip label={expiredCredits} className={styles.expiredCredits} />
+                </Tooltip>
+                <Tooltip title={account.credits.logCreditTask} aria-label={account.credits.logCreditTask}>
+                  <IconButton className={styles.logCreditTask} aria-label={account.credits.logCreditTask} onClick={logCreditTask}>
+                    <AddCircle color="primary" />
+                  </IconButton>
+                </Tooltip>
+              </Grid>
+            </Grid>
             {csProjects.length > 0 && (
               <ExpandablePanel
                 label={
@@ -457,7 +498,20 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 label={
                   <>
                     <Typography variant="subtitle2">{account.ticketEmails}</Typography>
-                    <Typography variant="subtitle2">{ticketEmails.length}</Typography>
+                    <div className={styles.latestEmailWrapper}>
+                      {emailId !== ticketEmails[0].activityid && (
+                        <RouteLink
+                          to={`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${ticketEmails[0].activityid}`}
+                          className={styles.latestEmailLink}
+                        >
+                          <div className={styles.latestEmailButton}>
+                            <Typography variant="button">{ticketTerms.latestEmail}</Typography>
+                            <LastPage />
+                          </div>
+                        </RouteLink>
+                      )}
+                      <Typography variant="subtitle2">{ticketEmails.length}</Typography>
+                    </div>
                   </>
                 }
                 items={ticketEmails}
@@ -570,10 +624,11 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 size="small"
                 options={allTags}
                 filterSelectedOptions
-                classes={{ listbox: styles.tagList, option: styles.tagOption }}
+                classes={{ listbox: styles.tagList, option: styles.tagOption, noOptions: styles.noTags }}
                 getOptionLabel={(option) => option.dyn_name}
                 getOptionSelected={(option, value) => option.dyn_name === value.dyn_name}
                 renderInput={(params) => <TextField {...params} variant="outlined" label={account.caseTags} />}
+                noOptionsText=""
                 value={ticketTags}
                 onChange={(_event: any, newValue: any) => {
                   setTicketTags((ticketTags) => (newValue ? newValue : ticketTags));

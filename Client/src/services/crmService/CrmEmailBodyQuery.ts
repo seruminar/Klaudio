@@ -20,6 +20,10 @@ export class CrmEmailBodyQuery extends CrmQueryBase<string> implements ICrmEmail
     return wretch(`/_controls/emailbody/msgBody.aspx`).query({ id: `{${this.emailId}}`, entityType: "email" });
   }
 
+  protected getDependencies() {
+    return [this.type];
+  }
+
   async sendRequest(request: Wretcher) {
     return await (await request.get().blob()).text();
   }

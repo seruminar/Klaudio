@@ -1,42 +1,45 @@
-import { BehaviorSubject, SubscriptionLike } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 
-export interface ICacheItem {
-  observable: SubscriptionLike;
-  refresh: NodeJS.Timeout | undefined;
-}
+import { ICacheItem } from './ICacheItem';
 
-export class CacheItem<T> {
+export class CacheItem<T> implements ICacheItem {
   observable: BehaviorSubject<T>;
+  dependencies: string[];
 
-  refresh: NodeJS.Timeout | undefined;
+  refresh: (callBack?: () => void) => void;
+  timeout: NodeJS.Timeout | undefined;
 
   constructor(
     observable: BehaviorSubject<T>,
     duration: number,
+    dependencies: string[],
     refresh: (observable: BehaviorSubject<T>) => Promise<T>,
     remove: () => void,
     shouldCache: (next: T) => boolean
   ) {
     this.observable = observable;
+    this.dependencies = dependencies;
+    this.refresh = (callBack?: () => void) =>
+      refresh(this.observable).then((next) => {
+        if (shouldCache(next) && callBack) {
+          this.timeout = setTimeout(callBack, duration * 1000);
+        }
+      });
 
     if (duration > 0) {
-      const timeout = () => {
+      const refreshOrRemove = () => {
         if (this.observable.observers.length) {
-          refresh(this.observable).then((next) => {
-            if (shouldCache(next)) {
-              this.refresh = setTimeout(timeout, duration * 1000);
-            }
-          });
+          this.refresh(refreshOrRemove);
           return;
         }
 
-        if (this.refresh) {
-          clearTimeout(this.refresh);
+        if (this.timeout) {
+          clearTimeout(this.timeout);
           remove();
         }
       };
 
-      this.refresh = setTimeout(timeout, duration * 1000);
+      this.timeout = setTimeout(refreshOrRemove, duration * 1000);
     }
   }
 }

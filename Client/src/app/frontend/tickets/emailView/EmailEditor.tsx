@@ -37,8 +37,8 @@ import {
     Undo
 } from '@material-ui/icons';
 
+import { useDependency } from '../../../../dependencyContainer';
 import { ICrmService } from '../../../../services/crmService/CrmService';
-import { useDependency } from '../../../../services/dependencyContainer';
 import { editor as editorTerms, email as emailTerms } from '../../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
 import { Loading } from '../../../shared/Loading';
@@ -87,6 +87,9 @@ const useStyles = makeStyles((theme) =>
       minHeight: 0,
       overflowY: "scroll",
       outline: "none",
+      "& pre": {
+        whiteSpace: "pre-wrap",
+      },
     },
     editorModeView: {},
     editorModeEdit: {
@@ -201,35 +204,36 @@ export const EmailEditor: FC<IEmailEditorProps> = ({ value }) => {
 
   useEffect(() => {
     if (editor && cannedResponse && cannedResponse.templateid === cannedResponseId && mode === "editLoading" && ticket && email && amUser) {
-      const matchedContent = cannedResponse.presentationxml.match(/<!\[CDATA\[([\s\S]*?)\]\]>/);
-      let cannedResponseContent = matchedContent && matchedContent[1];
+      const matchedContent = cannedResponse.presentationxml.matchAll(
+        /<!\[CDATA\[([\s\S]*?)\]\]>|<entity>account<\/entity><attribute>name<\/attribute>|<entity>account<\/entity><attribute>dyn_accountmanagerid\/@name<\/attribute>/gm
+      );
 
-      if (cannedResponseContent) {
+      let cannedResponseContentMatches = [];
+
+      for (const group of matchedContent) {
+        let match = group[1] ?? group[0];
+
         if (email?.trackingtoken) {
-          cannedResponseContent = cannedResponseContent.replace("{% ticket number %}", email.trackingtoken.split(":")[1]);
+          match = match.replace("{% ticket number %}", email.trackingtoken.split(":")[1]);
         }
 
         if (ticket?.customerid_account?.name) {
-          cannedResponseContent = cannedResponseContent.replace(
-            "<entity>account</entity><attribute>name</attribute>",
-            ticket.customerid_account.name
-          );
+          match = match.replace("<entity>account</entity><attribute>name</attribute>", ticket.customerid_account.name);
         }
 
         if (amUser?.fullname) {
-          cannedResponseContent = cannedResponseContent.replace(
-            "<entity>account</entity><attribute>dyn_accountmanagerid/@name</attribute>",
-            amUser.fullname
-          );
+          match = match.replace("<entity>account</entity><attribute>dyn_accountmanagerid/@name</attribute>", amUser.fullname);
         }
 
         if (amUser?.domainname) {
-          cannedResponseContent = cannedResponseContent.replace("{% account manager email %}", amUser.domainname);
-          cannedResponseContent = cannedResponseContent.replace("&lt;email of account manager&gt;", amUser.domainname);
+          match = match.replace("{% account manager email %}", amUser.domainname);
+          match = match.replace("&lt;email of account manager&gt;", amUser.domainname);
         }
 
-        editor.insertHTML(cannedResponseContent + "<p></p>");
+        cannedResponseContentMatches.push(match);
       }
+
+      editor.insertHTML(cannedResponseContentMatches.join("") + "<p></p>");
 
       setCannedResponseId(undefined);
       setMode("edit");
@@ -240,7 +244,6 @@ export const EmailEditor: FC<IEmailEditorProps> = ({ value }) => {
   const colors = useMemo(() => [blue[500], teal[500], lightGreen[500], yellow[600], orange[800], red[500], "black"], []);
 
   const path = editor?.getPath();
-  console.log(path);
 
   return (
     <div className={clsx(styles.editor, mode === "edit" || mode === "editLoading" ? styles.editorModeEdit : styles.editorModeView)}>

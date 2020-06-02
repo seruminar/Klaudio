@@ -4,11 +4,11 @@ import { createStyles, Grid, ListItem, makeStyles, Typography } from '@material-
 import { Alarm, Cake, Edit } from '@material-ui/icons';
 import { navigate } from '@reach/router';
 
+import { useDependency } from '../../../dependencyContainer';
 import { CrmEntity } from '../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../services/crmService/CrmService';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
 import { ICrmUser } from '../../../services/crmService/models/ICrmUser';
-import { useDependency } from '../../../services/dependencyContainer';
 import { email as emailTerms } from '../../../terms.en-us.json';
 import { wait } from '../../../utilities/promises';
 import { routes } from '../../routes';
@@ -29,9 +29,7 @@ interface ITicketItemProps {
 const useStyles = makeStyles((theme) =>
   createStyles({
     metadata: {
-      "& > *": {
-        margin: theme.spacing(0.5),
-      },
+      margin: theme.spacing(0.5, 0.25, 0.5, 0),
     },
     icon: {
       margin: theme.spacing(0, 1, 1, 0),
@@ -123,10 +121,10 @@ export const TicketItem: FC<ITicketItemProps> = memo(
             </Grid>
           </Grid>
           <Grid item>
-            <Typography component="span" className={styles.metadata}>
-              {ticket.modifiedon && <DateFromNow icon={<Edit />} date={ticket.modifiedon} />}
-              {ticket.ken_sladuedate && <DateFromNow icon={<Alarm />} date={ticket.ken_sladuedate} />}
-              {ticket.createdon && <DateFromNow icon={<Cake />} date={ticket.createdon} />}{" "}
+            <Typography component="span">
+              {ticket.modifiedon && <DateFromNow className={styles.metadata} icon={<Edit />} date={ticket.modifiedon} />}
+              {ticket.ken_sladuedate && <DateFromNow className={styles.metadata} icon={<Alarm />} date={ticket.ken_sladuedate} />}
+              {ticket.createdon && <DateFromNow className={styles.metadata} icon={<Cake />} date={ticket.createdon} />}
             </Typography>
           </Grid>
           <Grid item>

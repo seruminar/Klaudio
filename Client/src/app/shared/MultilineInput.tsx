@@ -68,8 +68,8 @@ export const MultilineInput: FC<IMultilineInputProps> = ({
                   onClick={(_) => {
                     const resolved = action(value);
 
-                    if (resolved !== undefined && resolved.hasOwnProperty("then")) {
-                      (resolved as PromiseLike<string | void>).then((value) => value !== undefined && setValue(value));
+                    if (resolved !== undefined && resolved instanceof Promise) {
+                      resolved.then((value) => value !== undefined && setValue(value));
                     }
                   }}
                 >
@@ -82,8 +82,8 @@ export const MultilineInput: FC<IMultilineInputProps> = ({
                 onClick={(_) => {
                   const resolved = action(value);
 
-                  if (resolved !== undefined && resolved.hasOwnProperty("then")) {
-                    (resolved as PromiseLike<string | void>).then((value) => value !== undefined && setValue(value));
+                  if (resolved !== undefined && resolved instanceof Promise) {
+                    resolved.then((value) => value !== undefined && setValue(value));
                   }
                 }}
               >

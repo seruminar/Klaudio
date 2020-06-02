@@ -13,7 +13,7 @@ interface ITicketsFilterFieldProps {
 
 const useStyles = makeStyles((theme) =>
   createStyles({
-    itemCount: { textAlign: "right", fontSize: ".75rem" },
+    itemCount: { textAlign: "right", fontSize: ".75rem", lineHeight: ".75rem" },
     input: {
       flex: 1,
     },
@@ -27,7 +27,9 @@ export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, labe
     <Autocomplete
       classes={{ input: styles.input }}
       options={Object.keys(options)}
-      getOptionLabel={(option) => options[option]}
+      getOptionLabel={(option) => {
+        return options[option];
+      }}
       renderOption={
         getCount &&
         ((option) => {

@@ -22,6 +22,7 @@ import {
 } from '@material-ui/core';
 import { AttachFile, FlashOn, PersonAdd, Reply, Send, Update } from '@material-ui/icons';
 
+import { useDependency } from '../../../../dependencyContainer';
 import { CrmEntity } from '../../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../../services/crmService/CrmService';
 import { EmailStatus } from '../../../../services/crmService/models/EmailStatus';
@@ -32,7 +33,6 @@ import { ICrmUser } from '../../../../services/crmService/models/ICrmUser';
 import { ParticipationType } from '../../../../services/crmService/models/ParticipationType';
 import { TicketPriority } from '../../../../services/crmService/models/TicketPriority';
 import { TicketStatus } from '../../../../services/crmService/models/TicketStatus';
-import { useDependency } from '../../../../services/dependencyContainer';
 import { systemUser } from '../../../../services/systemUser';
 import {
     email as emailTerms,
@@ -201,7 +201,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
   }, [rawEmailContent, rawCaseAttachments, emailAttachmentsData]);
 
   useEffect(() => {
-    if (ticket && email && caseAttachments) {
+    if (ticket && email && caseAttachments && mode === "loading") {
       switch (email.statuscode) {
         case EmailStatus.Draft:
           setMode("viewDraft");
@@ -210,10 +210,8 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
           setMode("view");
           break;
       }
-    } else {
-      setMode("loading");
     }
-  }, [ticket, email, caseAttachments]);
+  }, [ticket, email, caseAttachments, mode]);
 
   useEffect(() => {
     if (email?.torecipients) {

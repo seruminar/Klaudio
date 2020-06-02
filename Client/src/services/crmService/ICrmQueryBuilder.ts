@@ -9,4 +9,5 @@ export interface ICrmQueryBuilder<T extends ICrmEntity> extends ICrmQueryBase<T[
   filter: (filterQuery: string) => ICrmQueryBuilder<T>;
   orderBy: (orderByQuery: string) => ICrmQueryBuilder<T>;
   expand: <K extends keyof T>(property: K, select: (keyof NonNullable<T[K] extends any[] ? T[K][number] : T[K]>)[]) => ICrmQueryBuilder<T>;
+  insert: (data: Partial<T>) => PromiseLike<void>;
 }

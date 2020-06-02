@@ -27,12 +27,12 @@ import { useMatch } from '@reach/router';
 import { useLocalStorage } from '@rehooks/local-storage';
 
 import { experience } from '../../../appSettings.json';
+import { useDependency } from '../../../dependencyContainer';
 import { ICrmService } from '../../../services/crmService/CrmService';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
 import { TicketGroup } from '../../../services/crmService/models/TicketGroup';
 import { TicketPriority } from '../../../services/crmService/models/TicketPriority';
 import { TicketStatus } from '../../../services/crmService/models/TicketStatus';
-import { useDependency } from '../../../services/dependencyContainer';
 import { systemUser } from '../../../services/systemUser';
 import { entityNames, tickets as ticketsTerms } from '../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
@@ -111,7 +111,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   const [tab, setTab] = useState<TicketsTabs>(TicketsTabs.Filter);
   const [ticketQueue, setTicketQueue] = useLocalStorage(LocalStorageKeys.TicketQueue, TicketGroup.Support.toString());
   const [ticketPriority, setTicketPriority] = useLocalStorage<string | null>(LocalStorageKeys.TicketPriority, null);
-  const [ticketStatus, setTicketStatus] = useLocalStorage(LocalStorageKeys.TicketStatus, TicketStatus.Queue.toString());
+  const [ticketStatus, setTicketStatus] = useLocalStorage<string | null>(LocalStorageKeys.TicketStatus, null);
   const [ticketOwner, setTicketOwner] = useLocalStorage<string | null>(LocalStorageKeys.TicketOwner, null);
   const [ticketOrderBy, setTicketOrderBy] = useLocalStorage<OrderBy>(LocalStorageKeys.TicketOrderBy, "modified");
   const [orderByReverse, setOrderByReverse] = useLocalStorage(LocalStorageKeys.OrderByReverse, false);
@@ -216,13 +216,11 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   }, [usersFilter]);
 
   const usersFilterOptions = useMemo(() => {
-    let options: { [key: string]: string } = {};
-
     if (users) {
+      let options: { [key: string]: string } = {};
       [systemUser, ...users].map((user) => (options[user.systemuserid] = user.fullname ?? user.systemuserid));
+      return options;
     }
-
-    return options;
   }, [users]);
 
   useEffect(() => {
@@ -337,10 +335,18 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
               getCount={(value) =>
                 allTickets
                   ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(value))
-                  .filter((ticket) => ticket.statuscode === parseInt(ticketStatus)).length
+                  .filter((ticket) => ticket.statuscode === (ticketStatus ? parseInt(ticketStatus) : TicketStatus.Queue)).length
               }
               value={ticketQueue}
               setValue={(value) => setTicketQueue(value ? value : TicketGroup.Support.toString())}
+            />
+          </Box>
+          <Box className={styles.filterField}>
+            <TicketsFilterField
+              options={entityNames.ticketStatus}
+              label={ticketsTerms.status}
+              value={ticketStatus}
+              setValue={(value) => setTicketStatus(value)}
             />
           </Box>
           <Box className={styles.filterField}>
@@ -351,33 +357,28 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
                 allTickets
                   ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue))
                   .filter((ticket) => ticket.prioritycode === parseInt(value))
-                  .filter((ticket) => ticket.statuscode === parseInt(ticketStatus)).length
+                  .filter((ticket) => ticket.statuscode === (ticketStatus ? parseInt(ticketStatus) : TicketStatus.Queue)).length
               }
               value={ticketPriority}
               setValue={(value) => setTicketPriority(value)}
             />
           </Box>
           <Box className={styles.filterField}>
-            <TicketsFilterField
-              options={entityNames.ticketStatus}
-              label={ticketsTerms.status}
-              value={ticketStatus}
-              setValue={(value) => setTicketStatus(value ? value : TicketStatus.Queue.toString())}
-            />
-          </Box>
-          <Box className={styles.filterField}>
-            <TicketsFilterField
-              options={usersFilterOptions}
-              label={ticketsTerms.owner}
-              getCount={(value) =>
-                allTickets
-                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                  .filter((ticket) => ticket.statuscode === parseInt(ticketStatus))
-                  .filter((ticket) => ticket._ownerid_value === value).length
-              }
-              value={ticketOwner}
-              setValue={(value) => setTicketOwner(value)}
-            />
+            {!usersFilterOptions && <Loading />}
+            {usersFilterOptions && (
+              <TicketsFilterField
+                options={usersFilterOptions}
+                label={ticketsTerms.owner}
+                getCount={(value) =>
+                  allTickets
+                    ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue))
+                    .filter((ticket) => ticket.statuscode === (ticketStatus ? parseInt(ticketStatus) : TicketStatus.Queue))
+                    .filter((ticket) => ticket._ownerid_value === value).length
+                }
+                value={ticketOwner}
+                setValue={(value) => setTicketOwner(value)}
+              />
+            )}
           </Box>
           <Box className={styles.filterField}>
             <FormGroup>

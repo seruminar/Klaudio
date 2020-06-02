@@ -8,4 +8,5 @@ export interface ICrmNote extends ICrmEntity {
   _modifiedby_value: Guid;
   annotationid: Guid;
   modifiedby?: ICrmUser;
+  "objectid_incident@odata.bind"?: string;
 }

@@ -4,8 +4,8 @@ import useAsyncEffect from 'use-async-effect';
 import { Grid } from '@material-ui/core';
 import { navigate } from '@reach/router';
 
+import { useDependency } from '../../../dependencyContainer';
 import { ICrmService } from '../../../services/crmService/CrmService';
-import { useDependency } from '../../../services/dependencyContainer';
 import { useSubscription } from '../../../utilities/observables';
 import { RoutedFC } from '../../../utilities/routing';
 import { routes } from '../../routes';
@@ -18,13 +18,7 @@ interface IByIdProps {
 export const ById: RoutedFC<IByIdProps> = ({ ticketId }) => {
   const crmService = useDependency(ICrmService);
 
-  const ticket = useSubscription(
-    crmService
-      .tickets()
-      .id(ticketId!)
-      .select("ticketnumber")
-      .getObservable()
-  );
+  const ticket = useSubscription(crmService.tickets().id(ticketId!).select("ticketnumber").getObservable());
 
   useAsyncEffect(async () => {
     if (ticket) {

@@ -6,9 +6,10 @@ import { Chip, Tooltip } from '@material-ui/core';
 interface IDateFromNowProps {
   date: string | Date;
   icon?: ReactElement;
+  className?: string;
 }
 
-export const DateFromNow: FC<IDateFromNowProps> = ({ date, icon }) => {
+export const DateFromNow: FC<IDateFromNowProps> = ({ date, icon, className }) => {
   const [ping, setPing] = useState(true);
 
   const now = new Date();
@@ -32,7 +33,7 @@ export const DateFromNow: FC<IDateFromNowProps> = ({ date, icon }) => {
   const getDateString = useCallback((dateTimeString: Date | string) => moment(dateTimeString).format("LLL"), []);
 
   return (
-    <Tooltip title={getDateString(date)} aria-label={getDateString(date)}>
+    <Tooltip title={getDateString(date)} aria-label={getDateString(date)} className={className}>
       <Chip variant="outlined" size="small" component="span" icon={icon} label={moment(date).from(now)} />
     </Tooltip>
   );

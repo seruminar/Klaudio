@@ -73,7 +73,7 @@ const useStyles = makeStyles((theme) =>
       zIndex: 1000,
       fontSize: "3rem",
     },
-    fill: {
+    spacer: {
       flex: 1,
     },
     menuItem: { padding: theme.spacing(1.75) },
@@ -178,17 +178,17 @@ export const Frontend: RoutedFC = () => {
           </div>
           <Divider />
           <List>
-            <ListItem button className={styles.menuItem} selected={`/${context?.route}` === routes.tickets}>
-              <ListItemIcon>
-                <Link to={`${routes.base}${routes.tickets}`}>
+            <Link to={`${routes.base}${routes.tickets}`}>
+              <ListItem button className={styles.menuItem} selected={`/${context?.route}` === routes.tickets}>
+                <ListItemIcon>
                   <Mail color="action" />
-                </Link>
-              </ListItemIcon>
-              <ListItemText primary={header.routes.tickets} />
-            </ListItem>
+                </ListItemIcon>
+                <ListItemText primary={header.routes.tickets} />
+              </ListItem>
+            </Link>
           </List>
           <Divider />
-          <div className={styles.fill}></div>
+          <div className={styles.spacer} />
           <div className={styles.toolbar}>
             <Tooltip placement="right" title={getThemeModeLabel} aria-label={getThemeModeLabel}>
               <IconButton onClick={themeContext.toggleTheme} aria-label={getThemeModeLabel}>

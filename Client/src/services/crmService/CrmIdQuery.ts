@@ -61,6 +61,10 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
     return request;
   }
 
+  protected getDependencies() {
+    return [this.type, this.id];
+  }
+
   async sendRequest(request: Wretcher) {
     return await request.get().json<T>();
   }
