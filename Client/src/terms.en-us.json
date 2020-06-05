@@ -20,8 +20,11 @@
     "orderByReverse": "Reverse",
     "unassignedFirst": "Unassigned first",
     "ticketNumber": "Ticket #",
+    "ticketAccount": "Account name",
+    "ticketDate": "Ticket modified",
     "expand": "Expand",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "cases": "Cases"
   },
   "ticket": {
     "case": "Case: ",

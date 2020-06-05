@@ -24,6 +24,6 @@ export class CrmChildQuery<T extends ICrmEntity> extends CrmQuery<T> implements 
   }
 
   protected getDependencies() {
-    return [this.type, this.childName];
+    return [this.type, this.childName, this.parentId];
   }
 }

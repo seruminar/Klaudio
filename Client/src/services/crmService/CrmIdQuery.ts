@@ -1,3 +1,4 @@
+import sortArray from 'sort-array';
 import { Wretcher } from 'wretch';
 
 import { cacheDurations } from './cacheDurations';
@@ -43,7 +44,7 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
     request = request.url(`(${this.id})`);
 
     if (this.selectFields.length) {
-      request = request.query(`$select=${this.selectFields.join(",")}`);
+      request = request.query(`$select=${sortArray(this.selectFields).join(",")}`);
     }
 
     if (Object.keys(this.expandQuery).length) {
@@ -52,10 +53,10 @@ export class CrmIdQuery<T extends ICrmEntity> extends CrmQueryBase<T> implements
       for (const query in this.expandQuery) {
         const expanded = this.expandQuery[query];
 
-        expanded && expansions.push(`${query}($select=${expanded.join(",")})`);
+        expanded && expansions.push(`${query}($select=${sortArray(expanded!).join(",")})`);
       }
 
-      request = request.query(`$expand=${expansions.join(",")}`);
+      request = request.query(`$expand=${sortArray(expansions).join(",")}`);
     }
 
     return request;

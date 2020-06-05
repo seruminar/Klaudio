@@ -1,7 +1,6 @@
-import clsx from 'clsx';
-import React, { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Subject } from 'rxjs';
-import { debounceTime } from 'rxjs/operators';
+import moment from 'moment';
+import React, { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import sortArray from 'sort-array';
 
 import {
@@ -12,21 +11,18 @@ import {
     FormGroup,
     FormLabel,
     Grid,
-    InputAdornment,
     makeStyles,
     Radio,
     RadioGroup,
     Switch,
     Tab,
     Tabs,
-    TextField,
     Tooltip
 } from '@material-ui/core';
 import { Alarm, Cake, Edit, FilterList, FlashOn, Person, Search } from '@material-ui/icons';
 import { useMatch } from '@reach/router';
 import { useLocalStorage } from '@rehooks/local-storage';
 
-import { experience } from '../../../appSettings.json';
 import { useDependency } from '../../../dependencyContainer';
 import { ICrmService } from '../../../services/crmService/CrmService';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
@@ -44,6 +40,8 @@ import { LocalStorageKeys } from '../LocalStorageKeys';
 import { EmailLoader } from './emailView/EmailLoader';
 import { TicketItem } from './TicketItem';
 import { TicketsFilterField } from './TicketsFilterField';
+import { TicketsSearchField } from './TicketsSearchField';
+import { TicketsSearchRangeField } from './TicketsSearchRangeField';
 
 type OrderBy = "modified" | "due" | "created" | "owner" | "priority";
 
@@ -109,6 +107,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   const styles = useStyles();
 
   const [tab, setTab] = useState<TicketsTabs>(TicketsTabs.Filter);
+
   const [ticketQueue, setTicketQueue] = useLocalStorage(LocalStorageKeys.TicketQueue, TicketGroup.Support.toString());
   const [ticketPriority, setTicketPriority] = useLocalStorage<string | null>(LocalStorageKeys.TicketPriority, null);
   const [ticketStatus, setTicketStatus] = useLocalStorage<string | null>(LocalStorageKeys.TicketStatus, null);
@@ -116,11 +115,11 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   const [ticketOrderBy, setTicketOrderBy] = useLocalStorage<OrderBy>(LocalStorageKeys.TicketOrderBy, "modified");
   const [orderByReverse, setOrderByReverse] = useLocalStorage(LocalStorageKeys.OrderByReverse, false);
   const [unassignedFirst, setUnassignedFirst] = useLocalStorage(LocalStorageKeys.UnassignedFirst, true);
-  const [searchTicketNumber, setSearchTicketNumber] = useState("");
-  const [searchTicketNumberFilter, setSearchTicketNumberFilter] = useState<string>();
-  const [searching, setSearching] = useState(false);
 
-  const searchTicketNumberStream = useRef(new Subject<string>());
+  const [searching, setSearching] = useState(false);
+  const [searchTicketNumberFilter, setSearchTicketNumberFilter] = useState<string>();
+  const [searchTicketOwnerFilter, setSearchTicketOwnerFilter] = useState<string>();
+  const [searchTicketDateFilter, setSearchTicketDateFilter] = useState<[string, string]>();
 
   const [ticketNumber, emailId] = useMatch(`${routes.base}${routes.tickets}/*ticketPath`)?.ticketPath?.split("/") || [undefined, undefined];
 
@@ -129,7 +128,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   const allTickets = useSubscription(
     crmService
       .tickets()
-      .select("_ownerid_value", "prioritycode", "ticketnumber", "dyn_ticket_group", "statuscode")
+      .select("_ownerid_value", "prioritycode", "dyn_ticket_group")
       .filter(`statuscode eq ${TicketStatus.Queue}`)
       .top(100)
       .orderBy("modifiedon desc")
@@ -143,7 +142,9 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
       filter += ` and prioritycode eq ${ticketPriority}`;
     }
 
-    filter += ` and statuscode eq ${ticketStatus}`;
+    if (ticketStatus) {
+      filter += ` and statuscode eq ${ticketStatus}`;
+    }
 
     if (ticketOwner) {
       filter += ` and _ownerid_value eq ${ticketOwner}`;
@@ -157,8 +158,25 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
       filter = `Incident_Emails/any(e:contains(e/trackingtoken,'${searchTicketNumberFilter}'))`;
     }
 
+    if (searchTicketOwnerFilter) {
+      filter = `contains(customerid_account/name, '${searchTicketOwnerFilter}')`;
+    }
+
+    if (searchTicketDateFilter) {
+      filter = `modifiedon gt '${searchTicketDateFilter[0]}' and modifiedon lt '${searchTicketDateFilter[1]}')`;
+    }
+
     return filter;
-  }, [ticketQueue, ticketPriority, ticketStatus, ticketOwner, ticketNumber, searchTicketNumberFilter]);
+  }, [
+    ticketQueue,
+    ticketPriority,
+    ticketStatus,
+    ticketOwner,
+    ticketNumber,
+    searchTicketNumberFilter,
+    searchTicketOwnerFilter,
+    searchTicketDateFilter,
+  ]);
 
   const tickets = useSubscriptionEffect(
     (previousValue: ICrmTicket[] | undefined) =>
@@ -222,17 +240,6 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
       return options;
     }
   }, [users]);
-
-  useEffect(() => {
-    const subscription = searchTicketNumberStream.current.pipe(debounceTime(experience.searchTimeout)).subscribe({
-      next: async (ticketNumber) => {
-        setSearching(true);
-        setSearchTicketNumberFilter(ticketNumber);
-      },
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const orderedTickets = useMemo(() => {
     if (tickets) {
@@ -307,8 +314,8 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   const changeTab = useCallback((_event: ChangeEvent<{}>, newValue: TicketsTabs) => {
     switch (newValue) {
       case TicketsTabs.Filter:
-        setSearchTicketNumber("");
         setSearchTicketNumberFilter(undefined);
+        setSearchTicketOwnerFilter(undefined);
         break;
     }
 
@@ -316,187 +323,203 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   }, []);
 
   return (
-    <Grid container wrap="nowrap">
-      <Grid item zeroMinWidth className={styles.search} container direction="column" xs={2}>
-        <Tabs variant="fullWidth" value={tab} onChange={changeTab}>
-          <Tab classes={{ fullWidth: styles.tab }} icon={<FilterList />} />
-          <Tab classes={{ fullWidth: styles.tab }} icon={<Search />} />
-        </Tabs>
-        <Grid
-          container
-          className={clsx(styles.filter, tab !== TicketsTabs.Filter && styles.hidden)}
-          direction="column"
-          justify="flex-start"
-        >
-          <Box className={styles.filterField}>
-            <TicketsFilterField
-              options={entityNames.ticketGroup}
-              label={ticketsTerms.queue}
-              getCount={(value) =>
-                allTickets
-                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(value))
-                  .filter((ticket) => ticket.statuscode === (ticketStatus ? parseInt(ticketStatus) : TicketStatus.Queue)).length
-              }
-              value={ticketQueue}
-              setValue={(value) => setTicketQueue(value ? value : TicketGroup.Support.toString())}
-            />
-          </Box>
-          <Box className={styles.filterField}>
-            <TicketsFilterField
-              options={entityNames.ticketStatus}
-              label={ticketsTerms.status}
-              value={ticketStatus}
-              setValue={(value) => setTicketStatus(value)}
-            />
-          </Box>
-          <Box className={styles.filterField}>
-            <TicketsFilterField
-              options={entityNames.ticketPriority}
-              label={ticketsTerms.priority}
-              getCount={(value) =>
-                allTickets
-                  ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                  .filter((ticket) => ticket.prioritycode === parseInt(value))
-                  .filter((ticket) => ticket.statuscode === (ticketStatus ? parseInt(ticketStatus) : TicketStatus.Queue)).length
-              }
-              value={ticketPriority}
-              setValue={(value) => setTicketPriority(value)}
-            />
-          </Box>
-          <Box className={styles.filterField}>
-            {!usersFilterOptions && <Loading />}
-            {usersFilterOptions && (
-              <TicketsFilterField
-                options={usersFilterOptions}
-                label={ticketsTerms.owner}
-                getCount={(value) =>
-                  allTickets
-                    ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue))
-                    .filter((ticket) => ticket.statuscode === (ticketStatus ? parseInt(ticketStatus) : TicketStatus.Queue))
-                    .filter((ticket) => ticket._ownerid_value === value).length
-                }
-                value={ticketOwner}
-                setValue={(value) => setTicketOwner(value)}
-              />
-            )}
-          </Box>
-          <Box className={styles.filterField}>
-            <FormGroup>
-              <FormControl component="fieldset">
-                <FormLabel component="legend">{ticketsTerms.orderBy}</FormLabel>
-                <RadioGroup
-                  row
-                  className={styles.orderByRow}
-                  aria-label={ticketsTerms.orderBy}
-                  name={ticketsTerms.orderBy}
-                  value={ticketOrderBy}
-                  onChange={(event) => setTicketOrderBy(event.target.value as OrderBy)}
-                >
-                  <FormControlLabel
-                    value="modified"
-                    control={<Radio color="primary" />}
-                    label={
-                      <Tooltip title={ticketsTerms.modified} aria-label={ticketsTerms.modified}>
-                        <Edit className={styles.orderByIcon} />
-                      </Tooltip>
+    <>
+      <Helmet>
+        <title>
+          {`${ticketsTerms.cases} | ${(entityNames.ticketGroup as any)[ticketQueue]} (${
+            allTickets?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue)).length
+          })`}
+        </title>
+      </Helmet>
+      <Grid container wrap="nowrap">
+        <Grid item zeroMinWidth className={styles.search} container direction="column" xs={2}>
+          <Tabs variant="fullWidth" value={tab} onChange={changeTab}>
+            <Tab classes={{ fullWidth: styles.tab }} icon={<FilterList />} />
+            <Tab classes={{ fullWidth: styles.tab }} icon={<Search />} />
+          </Tabs>
+          {tab === TicketsTabs.Filter && (
+            <Grid container className={styles.filter} direction="column" justify="flex-start">
+              <Box className={styles.filterField}>
+                <TicketsFilterField
+                  options={entityNames.ticketGroup}
+                  label={ticketsTerms.queue}
+                  getCount={(value) => allTickets?.filter((ticket) => ticket.dyn_ticket_group === parseInt(value)).length}
+                  value={ticketQueue}
+                  setValue={(value) => setTicketQueue(value ? value : TicketGroup.Support.toString())}
+                />
+              </Box>
+              <Box className={styles.filterField}>
+                <TicketsFilterField
+                  options={entityNames.ticketStatus}
+                  label={ticketsTerms.status}
+                  value={ticketStatus}
+                  setValue={(value) => setTicketStatus(value)}
+                />
+              </Box>
+              <Box className={styles.filterField}>
+                <TicketsFilterField
+                  options={entityNames.ticketPriority}
+                  label={ticketsTerms.priority}
+                  getCount={(value) =>
+                    allTickets
+                      ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue))
+                      .filter((ticket) => ticket.prioritycode === parseInt(value)).length
+                  }
+                  value={ticketPriority}
+                  setValue={(value) => setTicketPriority(value)}
+                />
+              </Box>
+              <Box className={styles.filterField}>
+                {!usersFilterOptions && <Loading />}
+                {usersFilterOptions && (
+                  <TicketsFilterField
+                    options={usersFilterOptions}
+                    label={ticketsTerms.owner}
+                    getCount={(value) =>
+                      allTickets
+                        ?.filter((ticket) => ticket.dyn_ticket_group === parseInt(ticketQueue))
+                        .filter((ticket) => ticket._ownerid_value === value).length
                     }
+                    value={ticketOwner}
+                    setValue={(value) => setTicketOwner(value)}
+                  />
+                )}
+              </Box>
+              <Box className={styles.filterField}>
+                <FormGroup>
+                  <FormControl component="fieldset">
+                    <FormLabel component="legend">{ticketsTerms.orderBy}</FormLabel>
+                    <RadioGroup
+                      row
+                      className={styles.orderByRow}
+                      aria-label={ticketsTerms.orderBy}
+                      name={ticketsTerms.orderBy}
+                      value={ticketOrderBy}
+                      onChange={(event) => setTicketOrderBy(event.target.value as OrderBy)}
+                    >
+                      <FormControlLabel
+                        value="modified"
+                        control={<Radio color="primary" />}
+                        label={
+                          <Tooltip title={ticketsTerms.modified} aria-label={ticketsTerms.modified}>
+                            <Edit className={styles.orderByIcon} />
+                          </Tooltip>
+                        }
+                      />
+                      <FormControlLabel
+                        value="due"
+                        control={<Radio color="primary" />}
+                        label={
+                          <Tooltip title={ticketsTerms.due} aria-label={ticketsTerms.due}>
+                            <Alarm className={styles.orderByIcon} />
+                          </Tooltip>
+                        }
+                      />
+                      <FormControlLabel
+                        value="created"
+                        control={<Radio color="primary" />}
+                        label={
+                          <Tooltip title={ticketsTerms.created} aria-label={ticketsTerms.created}>
+                            <Cake className={styles.orderByIcon} />
+                          </Tooltip>
+                        }
+                      />
+                      <FormControlLabel
+                        value="priority"
+                        control={<Radio color="primary" />}
+                        label={
+                          <Tooltip title={ticketsTerms.priority} aria-label={ticketsTerms.priority}>
+                            <FlashOn className={styles.orderByIcon} />
+                          </Tooltip>
+                        }
+                      />
+                      <FormControlLabel
+                        value="owner"
+                        control={<Radio color="primary" />}
+                        label={
+                          <Tooltip title={ticketsTerms.owner} aria-label={ticketsTerms.owner}>
+                            <Person className={styles.orderByIcon} />
+                          </Tooltip>
+                        }
+                      />
+                    </RadioGroup>
+                  </FormControl>
+                  <FormControlLabel
+                    control={<Switch color="primary" checked={orderByReverse} onChange={() => setOrderByReverse(!orderByReverse)} />}
+                    label={ticketsTerms.orderByReverse}
                   />
                   <FormControlLabel
-                    value="due"
-                    control={<Radio color="primary" />}
-                    label={
-                      <Tooltip title={ticketsTerms.due} aria-label={ticketsTerms.due}>
-                        <Alarm className={styles.orderByIcon} />
-                      </Tooltip>
-                    }
+                    control={<Switch color="primary" checked={unassignedFirst} onChange={() => setUnassignedFirst(!unassignedFirst)} />}
+                    label={ticketsTerms.unassignedFirst}
                   />
-                  <FormControlLabel
-                    value="created"
-                    control={<Radio color="primary" />}
-                    label={
-                      <Tooltip title={ticketsTerms.created} aria-label={ticketsTerms.created}>
-                        <Cake className={styles.orderByIcon} />
-                      </Tooltip>
-                    }
-                  />
-                  <FormControlLabel
-                    value="priority"
-                    control={<Radio color="primary" />}
-                    label={
-                      <Tooltip title={ticketsTerms.priority} aria-label={ticketsTerms.priority}>
-                        <FlashOn className={styles.orderByIcon} />
-                      </Tooltip>
-                    }
-                  />
-                  <FormControlLabel
-                    value="owner"
-                    control={<Radio color="primary" />}
-                    label={
-                      <Tooltip title={ticketsTerms.owner} aria-label={ticketsTerms.owner}>
-                        <Person className={styles.orderByIcon} />
-                      </Tooltip>
-                    }
-                  />
-                </RadioGroup>
-              </FormControl>
-              <FormControlLabel
-                control={<Switch color="primary" checked={orderByReverse} onChange={() => setOrderByReverse(!orderByReverse)} />}
-                label={ticketsTerms.orderByReverse}
-              />
-              <FormControlLabel
-                control={<Switch color="primary" checked={unassignedFirst} onChange={() => setUnassignedFirst(!unassignedFirst)} />}
-                label={ticketsTerms.unassignedFirst}
-              />
-            </FormGroup>
-          </Box>
-          <Box className={styles.fill} />
+                </FormGroup>
+              </Box>
+              <Box className={styles.fill} />
+            </Grid>
+          )}
+          {tab === TicketsTabs.Search && (
+            <Grid container className={styles.filter} direction="column" justify="flex-start">
+              <Box className={styles.filterField}>
+                <TicketsSearchField
+                  label={ticketsTerms.ticketNumber}
+                  searching={searchTicketNumberFilter !== undefined && searching}
+                  setFilter={(value) => {
+                    setSearching(true);
+                    setSearchTicketOwnerFilter(undefined);
+                    setSearchTicketNumberFilter(value);
+                    setSearchTicketDateFilter(undefined);
+                  }}
+                  resetValue={searchTicketDateFilter !== undefined || searchTicketOwnerFilter !== undefined}
+                />
+              </Box>
+              <Box className={styles.filterField}>
+                <TicketsSearchField
+                  label={ticketsTerms.ticketAccount}
+                  searching={searchTicketOwnerFilter !== undefined && searching}
+                  setFilter={(value) => {
+                    setSearching(true);
+                    setSearchTicketOwnerFilter(value);
+                    setSearchTicketNumberFilter(undefined);
+                    setSearchTicketDateFilter(undefined);
+                  }}
+                  resetValue={searchTicketDateFilter !== undefined || searchTicketNumberFilter !== undefined}
+                />
+              </Box>
+              <Box className={styles.filterField}>
+                <TicketsSearchRangeField
+                  label={ticketsTerms.ticketDate}
+                  searching={searchTicketDateFilter !== undefined && searching}
+                  range={[365 * -5, 0]}
+                  valueLabelFormat={(value) => moment().add(value, "days").format("L")}
+                  setFilter={(value) => {
+                    setSearching(true);
+                    setSearchTicketOwnerFilter(undefined);
+                    setSearchTicketNumberFilter(undefined);
+                    setSearchTicketDateFilter([moment().add(value[0], "days").toISOString(), moment().add(value[1], "days").toISOString()]);
+                  }}
+                  resetValue={searchTicketOwnerFilter !== undefined || searchTicketNumberFilter !== undefined}
+                />
+              </Box>
+              <Box className={styles.fill}></Box>
+            </Grid>
+          )}
         </Grid>
-        <Grid
-          container
-          className={clsx(styles.filter, tab !== TicketsTabs.Search && styles.hidden)}
-          direction="column"
-          justify="flex-start"
-        >
-          <Box className={styles.filterField}>
-            <TextField
-              label={ticketsTerms.ticketNumber}
-              fullWidth
-              value={searchTicketNumber}
-              onChange={(event) => {
-                setSearchTicketNumber(event.target.value);
-                searchTicketNumberStream.current.next(event.target.value);
-              }}
-              InputProps={
-                searching
-                  ? {
-                      endAdornment: (
-                        <InputAdornment position="end" className={styles.searchLoading}>
-                          <Loading small />
-                        </InputAdornment>
-                      ),
-                    }
-                  : undefined
-              }
+        <PaneList tooltip={[ticketsTerms.expand, ticketsTerms.collapse]}>
+          {!tickets && <Loading />}
+          {orderedTickets?.map((ticket) => (
+            <TicketItem
+              key={ticket.incidentid}
+              ticket={ticket}
+              ticketNumber={ticketNumber}
+              emailId={emailId}
+              owner={ticket.owninguser?.systemuserid === systemUser.systemuserid ? systemUser : ticket.owninguser}
             />
-          </Box>
-          <Box className={styles.fill}></Box>
+          ))}
+        </PaneList>
+        <Grid item zeroMinWidth className={styles.emailView} xs={"auto"}>
+          {ticketNumber && <EmailLoader ticketNumber={ticketNumber} emailId={emailId} users={users} />}
         </Grid>
       </Grid>
-      <PaneList tooltip={[ticketsTerms.expand, ticketsTerms.collapse]}>
-        {!tickets && <Loading />}
-        {orderedTickets?.map((ticket) => (
-          <TicketItem
-            key={ticket.incidentid}
-            ticket={ticket}
-            ticketNumber={ticketNumber}
-            emailId={emailId}
-            owner={ticket.owninguser?.systemuserid === systemUser.systemuserid ? systemUser : ticket.owninguser}
-          />
-        ))}
-      </PaneList>
-      <Grid item zeroMinWidth className={styles.emailView} xs={"auto"}>
-        {ticketNumber && <EmailLoader ticketNumber={ticketNumber} emailId={emailId} users={users} />}
-      </Grid>
-    </Grid>
+    </>
   );
 };

@@ -26,4 +26,5 @@ export interface ICrmTicket extends ICrmEntity {
   primarycontactid?: ICrmContact | null;
   customerid_account?: ICrmAccount | null;
   owninguser?: ICrmUser;
+  "ownerid@odata.bind"?: string;
 }

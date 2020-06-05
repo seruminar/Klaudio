@@ -1,16 +1,44 @@
 import React, { FC, MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react';
 
-import { IconButton, Link, MenuItem, Popover, Tooltip } from '@material-ui/core';
+import {
+    createStyles,
+    Grid,
+    IconButton,
+    Link,
+    makeStyles,
+    MenuItem,
+    Popover,
+    Tooltip
+} from '@material-ui/core';
 import { MoreVert } from '@material-ui/icons';
+
+interface IMenuOption {
+  icon?: ReactNode;
+  label: ReactNode;
+  target?: string;
+  onClick?: () => void;
+}
 
 interface IMenuProps {
   tooltip: string;
   icon?: ReactNode;
   className?: string;
-  options: { component: ReactNode; target?: string; onClick?: () => void }[];
+  options: (IMenuOption | false)[];
 }
 
+const useStyles = makeStyles((theme) =>
+  createStyles({
+    item: { padding: theme.spacing(1) },
+    icon: {
+      lineHeight: 0,
+      marginRight: theme.spacing(0.5),
+    },
+  })
+);
+
 export const Menu: FC<IMenuProps> = ({ tooltip, icon, className, options }) => {
+  const styles = useStyles();
+
   const [popoverEl, setPopoverEl] = useState<null | HTMLElement>(null);
 
   const openMenu = useCallback((event: MouseEvent<HTMLButtonElement>) => {
@@ -43,20 +71,30 @@ export const Menu: FC<IMenuProps> = ({ tooltip, icon, className, options }) => {
         onClose={closeMenu()}
         anchorOrigin={{
           vertical: "bottom",
-          horizontal: "left"
+          horizontal: "left",
         }}
         transformOrigin={{
           vertical: "top",
-          horizontal: "left"
+          horizontal: "left",
         }}
       >
-        {options.map((option, index) => (
-          <MenuItem onClick={closeMenu(option.onClick)} key={index}>
-            <Link href={option.target} underline="none" color="textPrimary" target="_blank" rel="noreferrer noopener">
-              {option.component}
-            </Link>
-          </MenuItem>
-        ))}
+        {options.map(
+          (option, index) =>
+            option && (
+              <MenuItem className={styles.item} onClick={closeMenu(option.onClick)} key={index}>
+                <Link href={option.target} underline="none" color="textPrimary" target="_blank" rel="noreferrer noopener">
+                  <Grid container alignItems="center">
+                    {option.icon && (
+                      <Grid item className={styles.icon}>
+                        {option.icon}
+                      </Grid>
+                    )}
+                    <Grid item>{option.label}</Grid>
+                  </Grid>
+                </Link>
+              </MenuItem>
+            )
+        )}
       </Popover>
     </>
   );

@@ -20,11 +20,24 @@ import {
     Tooltip,
     Typography
 } from '@material-ui/core';
-import { AttachFile, FlashOn, PersonAdd, Reply, Send, Update } from '@material-ui/icons';
+import {
+    AccountBalance,
+    AttachFile,
+    BugReport,
+    Cached,
+    Feedback,
+    FlashOn,
+    People,
+    PersonAdd,
+    Reply,
+    Send,
+    Update
+} from '@material-ui/icons';
 
 import { useDependency } from '../../../../dependencyContainer';
 import { CrmEntity } from '../../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../../services/crmService/CrmService';
+import { ICrmServiceCache } from '../../../../services/crmService/CrmServiceCache';
 import { EmailStatus } from '../../../../services/crmService/models/EmailStatus';
 import { ICrmAttachment } from '../../../../services/crmService/models/ICrmAttachment';
 import { ICrmEmail } from '../../../../services/crmService/models/ICrmEmail';
@@ -41,7 +54,7 @@ import {
 } from '../../../../terms.en-us.json';
 import { deleteFrom } from '../../../../utilities/arrays';
 import { getSizeText } from '../../../../utilities/numbers';
-import { useSubscriptionEffect } from '../../../../utilities/observables';
+import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
 import { wait } from '../../../../utilities/promises';
 import { ExpandableList } from '../../../shared/ExpandableList';
 import { Loading } from '../../../shared/Loading';
@@ -115,24 +128,23 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
   const [mode, setMode] = useState<EmailViewMode>("loading");
 
   const crmService = useDependency(ICrmService);
+  const crmServiceCache = useDependency(ICrmServiceCache);
 
-  const ticketId = ticket?.incidentid;
+  const currentUser = useSubscription(crmService.currentUser().getObservable());
 
   const emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
 
-  const email = useSubscriptionEffect(() => {
-    if (ticketId && emailId) {
-      return crmService
-        .tickets()
-        .id(ticketId)
-        .children("Incident_Emails")
-        .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "trackingtoken", "torecipients")
-        .filter(`${emailFilter} and activityid eq ${emailId}`)
-        .top(1)
-        .orderBy("createdon desc")
-        .getObservable();
-    }
-  }, [ticketId, emailId])?.[0];
+  const email = useSubscription(
+    crmService
+      .tickets()
+      .id(ticket.incidentid)
+      .children("Incident_Emails")
+      .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "trackingtoken", "torecipients")
+      .filter(`${emailFilter} and activityid eq ${emailId}`)
+      .top(1)
+      .orderBy("createdon desc")
+      .getObservable()
+  )?.[0];
 
   const rawEmailContent = useSubscriptionEffect(() => {
     if (email?.activityid) {
@@ -144,19 +156,17 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
     }
   }, [email]);
 
-  const rawCaseAttachments = useSubscriptionEffect(() => {
-    if (ticketId) {
-      return crmService
-        .tickets()
-        .id(ticketId)
-        .children("Incident_Emails")
-        .select("activityid")
-        .filter(emailFilter)
-        .orderBy("createdon desc")
-        .expand("email_activity_mime_attachment", ["filename", "mimetype", "_objectid_value", "attachmentcontentid"])
-        .getObservable();
-    }
-  }, [ticketId]);
+  const rawCaseAttachments = useSubscription(
+    crmService
+      .tickets()
+      .id(ticket.incidentid)
+      .children("Incident_Emails")
+      .select("activityid")
+      .filter(emailFilter)
+      .orderBy("createdon desc")
+      .expand("email_activity_mime_attachment", ["filename", "mimetype", "_objectid_value", "attachmentcontentid"])
+      .getObservable()
+  );
 
   const emailAttachmentsData = useSubscriptionEffect(() => {
     if (rawEmailContent) {
@@ -274,17 +284,48 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
     }
   }, [caseAttachments, email]);
 
-  const assignUser = useCallback(async (user: ICrmUser) => {
-    setAssignToOpen(false);
-    setMode("loading");
+  const setStatus = useCallback(
+    async (status: TicketStatus) => {
+      setMode("loading");
 
+      await crmService.tickets().upsert(ticket.incidentid, { statuscode: status });
+      await wait(1000);
+      crmServiceCache.refresh("incidents");
+
+      setMode("view");
+    },
+    [crmService, ticket.incidentid, crmServiceCache]
+  );
+
+  const setPriority = useCallback(
+    async (priority: TicketPriority) => {
+      setMode("loading");
+
+      await crmService.tickets().upsert(ticket.incidentid, { prioritycode: priority });
+      await wait(1000);
+      crmServiceCache.refresh("incidents");
+
+      setMode("view");
+    },
+    [crmService, ticket.incidentid, crmServiceCache]
+  );
+
+  const assignUser = useCallback(
+    async (userId: Guid) => {
+      setAssignToOpen(false);
+      setMode("loading");
+
+      await crmService.tickets().upsert(ticket.incidentid, { "ownerid@odata.bind": `/systemusers(${userId})` });
+      await wait(1000);
+      crmServiceCache.refresh("incidents");
+
+      setMode("view");
+    },
+    [crmService, ticket.incidentid, crmServiceCache]
+  );
+
+  const editEmail = useCallback(async () => {
     // TEMPORARY
-    await wait(1000);
-
-    setMode("view");
-  }, []);
-
-  const editEmail = useCallback(() => {
     setMode("newReply");
   }, []);
 
@@ -349,7 +390,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
             {users
               .filter((user) => user.systemuserid !== ticket._ownerid_value)
               .map((user) => (
-                <ListItem button key={user.systemuserid} onClick={async () => await assignUser(user)}>
+                <ListItem button key={user.systemuserid} onClick={async () => await assignUser(user.systemuserid)}>
                   <ListItemAvatar>
                     <Avatar>{user.address1_telephone3 ? entityNames.userType[user.address1_telephone3] : ""}</Avatar>
                   </ListItemAvatar>
@@ -406,42 +447,80 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
                   </IconButton>
                 </Tooltip>
               )}
-              <Tooltip title={emailTerms.assignToMe} aria-label={emailTerms.assignToMe}>
-                <IconButton>
-                  <PersonAdd />
-                </IconButton>
-              </Tooltip>
+              {!currentUser && <Loading small />}
+              {currentUser && (
+                <Tooltip title={emailTerms.assignToMe} aria-label={emailTerms.assignToMe}>
+                  <IconButton onClick={async () => await assignUser(currentUser.UserId)}>
+                    <PersonAdd />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Menu
                 tooltip={emailTerms.setStatus}
                 icon={<Update />}
                 options={[
-                  { component: entityNames.ticketStatus[TicketStatus.Queue] },
-                  { component: entityNames.ticketStatus[TicketStatus.Waiting] },
-                  { component: entityNames.ticketStatus[TicketStatus.Solved] },
-                  { component: entityNames.ticketStatus[TicketStatus.Closed] },
+                  ticket.statuscode !== TicketStatus.Queue && {
+                    label: entityNames.ticketStatus[TicketStatus.Queue],
+                    onClick: () => setStatus(TicketStatus.Queue),
+                  },
+                  ticket.statuscode !== TicketStatus.Waiting && {
+                    label: entityNames.ticketStatus[TicketStatus.Waiting],
+                    onClick: () => setStatus(TicketStatus.Waiting),
+                  },
+                  ticket.statuscode !== TicketStatus.Solved && {
+                    label: entityNames.ticketStatus[TicketStatus.Solved],
+                    onClick: () => setStatus(TicketStatus.Solved),
+                  },
+                  ticket.statuscode !== TicketStatus.Closed && {
+                    label: entityNames.ticketStatus[TicketStatus.Closed],
+                    onClick: () => setStatus(TicketStatus.Closed),
+                  },
                 ]}
               />
               <Menu
                 tooltip={emailTerms.setPriority}
                 icon={<FlashOn />}
                 options={[
-                  { component: entityNames.ticketPriority[TicketPriority.FireFighting] },
-                  { component: entityNames.ticketPriority[TicketPriority.HighPriority] },
-                  { component: entityNames.ticketPriority[TicketPriority.Normal] },
-                  { component: entityNames.ticketPriority[TicketPriority.WaitingForDevelopers] },
-                  { component: entityNames.ticketPriority[TicketPriority.LowPriority] },
-                  { component: entityNames.ticketPriority[TicketPriority.Processed] },
+                  ticket.prioritycode !== TicketPriority.Normal && {
+                    label: entityNames.ticketPriority[TicketPriority.Normal],
+                    onClick: () => setPriority(TicketPriority.Normal),
+                  },
+                  ticket.prioritycode !== TicketPriority.WaitingForDevelopers && {
+                    label: entityNames.ticketPriority[TicketPriority.WaitingForDevelopers],
+                    onClick: () => setPriority(TicketPriority.WaitingForDevelopers),
+                  },
+                  ticket.prioritycode !== TicketPriority.Processed && {
+                    label: entityNames.ticketPriority[TicketPriority.Processed],
+                    onClick: () => setPriority(TicketPriority.Processed),
+                  },
+                  ticket.prioritycode !== TicketPriority.LowPriority && {
+                    label: entityNames.ticketPriority[TicketPriority.LowPriority],
+                    onClick: () => setPriority(TicketPriority.LowPriority),
+                  },
+                  ticket.prioritycode !== TicketPriority.HighPriority && {
+                    label: entityNames.ticketPriority[TicketPriority.HighPriority],
+                    onClick: () => setPriority(TicketPriority.HighPriority),
+                  },
+                  ticket.prioritycode !== TicketPriority.FireFighting && {
+                    label: entityNames.ticketPriority[TicketPriority.FireFighting],
+                    onClick: () => setPriority(TicketPriority.FireFighting),
+                  },
                 ]}
               />
               <Menu
                 tooltip={emailTerms.more}
                 options={[
-                  { component: emailTerms.assignTo, onClick: () => setAssignToOpen(true) },
-                  { component: emailTerms.handOver },
-                  { component: emailTerms.submitFeedback },
-                  { component: emailTerms.submitBug, target: crmService.crmUrl(CrmEntity.Jira).id(ticket.incidentid).build() },
+                  { icon: <People />, label: emailTerms.assignTo, onClick: () => setAssignToOpen(true) },
+                  { icon: <Cached />, label: emailTerms.handOver },
+                  { icon: <Feedback />, label: emailTerms.submitFeedback },
                   {
-                    component: emailTerms.openInCrm,
+                    icon: <BugReport />,
+                    label: emailTerms.submitBug,
+                    target: crmService.crmUrl(CrmEntity.Jira).id(ticket.incidentid).build(),
+                  },
+                  {
+                    icon: <AccountBalance />,
+                    label: emailTerms.openInCrm,
                     target: crmService.crmUrl(CrmEntity.Ticket).id(ticket.incidentid).build(),
                   },
                 ]}

@@ -1,15 +1,17 @@
-import React, { FC, lazy, memo, Suspense, useCallback, useEffect, useRef } from 'react';
+import React, { FC, lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 
 import { createStyles, Grid, ListItem, makeStyles, Typography } from '@material-ui/core';
-import { Alarm, Cake, Edit } from '@material-ui/icons';
+import { AccountBalance, Alarm, Cake, Edit, PersonAdd } from '@material-ui/icons';
 import { navigate } from '@reach/router';
 
 import { useDependency } from '../../../dependencyContainer';
 import { CrmEntity } from '../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../services/crmService/CrmService';
+import { ICrmServiceCache } from '../../../services/crmService/CrmServiceCache';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
 import { ICrmUser } from '../../../services/crmService/models/ICrmUser';
 import { email as emailTerms } from '../../../terms.en-us.json';
+import { useSubscription } from '../../../utilities/observables';
 import { wait } from '../../../utilities/promises';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
@@ -57,9 +59,14 @@ export const TicketItem: FC<ITicketItemProps> = memo(
   ({ ticket, ticketNumber, emailId, owner }) => {
     const styles = useStyles();
 
+    const [mode, setMode] = useState<"loading" | "ready">("ready");
+
     const listItemRef = useRef<HTMLDivElement>(null);
 
     const crmService = useDependency(ICrmService);
+    const crmServiceCache = useDependency(ICrmServiceCache);
+
+    const currentUser = useSubscription(crmService.currentUser().getObservable());
 
     const ticketIsSelected = useCallback((ticket: ICrmTicket) => ticketNumber === ticket.ticketnumber, [ticketNumber]);
 
@@ -83,6 +90,19 @@ export const TicketItem: FC<ITicketItemProps> = memo(
       }
     }, [scrollIntoView, ticket, ticketIsSelected]);
 
+    const assignUser = useCallback(
+      async (userId: Guid) => {
+        setMode("loading");
+
+        await crmService.tickets().upsert(ticket.incidentid, { "ownerid@odata.bind": `/systemusers(${userId})` });
+        await wait(1000);
+        crmServiceCache.refresh("incidents");
+
+        setMode("ready");
+      },
+      [crmService, ticket.incidentid, crmServiceCache]
+    );
+
     return (
       <ListItem
         dense
@@ -92,21 +112,27 @@ export const TicketItem: FC<ITicketItemProps> = memo(
         selected={ticketIsSelected(ticket)}
         onClick={onClick(ticket)}
       >
+        {mode === "loading" && <Loading overlay />}
         <Grid container direction="column" className={styles.content}>
           <Grid item container>
             <Grid item>
               <TicketIcon className={styles.icon} ticket={ticket} />
             </Grid>
             <Grid item sm>
-              {owner && (
+              {owner && currentUser && (
                 <>
                   <Menu
                     className={styles.menu}
                     tooltip={emailTerms.more}
                     options={[
-                      { component: emailTerms.assignToMe },
+                      ticket.owninguser?.systemuserid !== currentUser?.UserId && {
+                        icon: <PersonAdd />,
+                        label: emailTerms.assignToMe,
+                        onClick: () => assignUser(currentUser.UserId),
+                      },
                       {
-                        component: emailTerms.openInCrm,
+                        icon: <AccountBalance />,
+                        label: emailTerms.openInCrm,
                         target: crmService.crmUrl(CrmEntity.Ticket).id(ticket.incidentid).build(),
                       },
                     ]}

@@ -70,8 +70,6 @@ interface ITicketDetailsProps {
   emailId: string | undefined;
 }
 
-type NoteMode = "loading" | "ready";
-
 const useStyles = makeStyles((theme) =>
   createStyles({
     divider: {
@@ -145,8 +143,8 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
     const styles = useStyles();
 
     const [ticketTags, setTicketTags] = useState<ICrmTag[]>();
-    const [addNoteMode, setAddNoteMode] = useState<NoteMode>("ready");
-    const [editNoteMode, setEditNoteMode] = useState<NoteMode>("ready");
+    const [addNoteMode, setAddNoteMode] = useState<"loading" | "ready">("ready");
+    const [editNoteMode, setEditNoteMode] = useState<"loading" | "ready">("ready");
 
     const crmService = useDependency(ICrmService);
     const crmServiceCache = useDependency(ICrmServiceCache);
@@ -230,9 +228,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
         .getObservable()
     );
 
-    const currentUser = useSubscriptionEffect(() => {
-      return crmService.currentUser().getObservable();
-    }, []);
+    const currentUser = useSubscription(crmService.currentUser().getObservable());
 
     const rawTicketTags = useSubscription(
       crmService.tickets().id(ticket.incidentid).children("incident_connections1").select("name").orderBy("name desc").getObservable()
@@ -339,7 +335,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
 
         const bestCreditsService = sortArray(validCreditsServices, {
           by: ["ken_expireson", "ken_remainingcredits"],
-          order: ["asc", "desc"],
+          order: ["asc", "asc"],
         })[0];
 
         window.open(crmService.crmUrl(CrmEntity.AccountService).id(bestCreditsService.ken_serviceid).build(), "_blank");
@@ -350,7 +346,6 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
       async (value: string) => {
         setAddNoteMode("loading");
 
-        // TEMPORARY
         await crmService.notes().insert({ notetext: value, "objectid_incident@odata.bind": `/incidents(${ticket.incidentid})` });
         await wait(1000);
         crmServiceCache.refresh("Incident_Annotation");
@@ -499,7 +494,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                   <>
                     <Typography variant="subtitle2">{account.ticketEmails}</Typography>
                     <div className={styles.latestEmailWrapper}>
-                      {emailId !== ticketEmails[0].activityid && (
+                      {emailId && emailId !== ticketEmails[0].activityid && (
                         <RouteLink
                           to={`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${ticketEmails[0].activityid}`}
                           className={styles.latestEmailLink}

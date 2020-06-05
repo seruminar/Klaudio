@@ -1,3 +1,4 @@
+import sortArray from 'sort-array';
 import wretch, { Wretcher } from 'wretch';
 import { retry } from 'wretch-middlewares';
 
@@ -70,13 +71,19 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
     return request.post(data);
   }
 
+  upsert(id: Guid, data: Partial<T>) {
+    const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}(${id})`).middlewares([retry()]));
+
+    return request.patch(data);
+  }
+
   protected getRequest(request: Wretcher): Wretcher {
     if (this.topQuery > -1) {
       request = request.query(`$top=${this.topQuery}`);
     }
 
     if (this.selectFields.length) {
-      request = request.query(`$select=${this.selectFields.join(",")}`);
+      request = request.query(`$select=${sortArray(this.selectFields).join(",")}`);
     }
 
     if (this.filterQuery !== "") {
@@ -93,10 +100,10 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
       for (const query in this.expandQuery) {
         const expanded = this.expandQuery[query];
 
-        expanded && expansions.push(`${query}($select=${expanded.join(",")})`);
+        expanded && expansions.push(`${query}($select=${sortArray(expanded!).join(",")})`);
       }
 
-      request = request.query(`$expand=${expansions.join(",")}`);
+      request = request.query(`$expand=${sortArray(expansions).join(",")}`);
     }
 
     return request;
