@@ -9,6 +9,7 @@ import { ICrmQueryBuilder } from './ICrmQueryBuilder';
 import { ICrmUrlBuilder } from './ICrmUrlBuilder';
 import { ICrmAccount } from './models/ICrmAccount';
 import { ICrmAccountService } from './models/ICrmAccountService';
+import { ICrmAccountServiceTask } from './models/ICrmAccountServiceTask';
 import { ICrmAttachment } from './models/ICrmAttachment';
 import { ICrmCannedResponse } from './models/ICrmCannedResponse';
 import { ICrmConnection } from './models/ICrmConnection';
@@ -25,32 +26,19 @@ export const ICrmService = "ICrmService";
 
 export class CrmService {
   currentUser: () => ICrmIdQueryBuilder<ICrmCurrentUser> = () => new CrmIdQuery<ICrmCurrentUser>("WhoAmI", "");
-
   users: () => ICrmQueryBuilder<ICrmUser> = () => new CrmQuery<ICrmUser>("systemusers");
-
   contacts: () => ICrmQueryBuilder<ICrmContact> = () => new CrmQuery<ICrmContact>("contacts");
-
   tags: () => ICrmQueryBuilder<ICrmTag> = () => new CrmQuery<ICrmTag>("dyn_tags");
-
   emails: () => ICrmQueryBuilder<ICrmEmail> = () => new CrmQuery<ICrmEmail>("emails");
-
   attachments: () => ICrmQueryBuilder<ICrmAttachment> = () => new CrmQuery<ICrmAttachment>("activitymimeattachments");
-
   emailBody: () => ICrmEmailBodyQueryBuilder = () => new CrmEmailBodyQuery();
-
   services: () => ICrmQueryBuilder<ICrmAccountService> = () => new CrmQuery<ICrmAccountService>("ken_services");
-
+  serviceTasks: () => ICrmQueryBuilder<ICrmAccountServiceTask> = () => new CrmQuery<ICrmAccountServiceTask>("ken_servicetasks");
   csProjects: () => ICrmQueryBuilder<ICrmCsProject> = () => new CrmQuery<ICrmCsProject>("ken_customersuccessprojects");
-
   tickets: () => ICrmQueryBuilder<ICrmTicket> = () => new CrmQuery<ICrmTicket>("incidents");
-
   connections: () => ICrmQueryBuilder<ICrmConnection> = () => new CrmQuery<ICrmConnection>("connections");
-
   notes: () => ICrmQueryBuilder<ICrmNote> = () => new CrmQuery<ICrmNote>("annotations");
-
   cannedResponses: () => ICrmQueryBuilder<ICrmCannedResponse> = () => new CrmQuery<ICrmCannedResponse>("templates");
-
   accounts: () => ICrmQueryBuilder<ICrmAccount> = () => new CrmQuery<ICrmAccount>("accounts");
-
   crmUrl: (type: CrmEntity) => ICrmUrlBuilder = (type: CrmEntity) => new CrmUrl(type);
 }

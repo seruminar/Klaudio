@@ -44,7 +44,7 @@ export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, labe
         })
       }
       value={value}
-      onChange={(_event: any, newValue: string | null) => setValue(newValue)}
+      onChange={(_event, value) => setValue(value)}
       renderInput={(params) => {
         const count = getCount && getCount(Object.keys(options).find((key) => options[key] === (params.inputProps as any).value)!);
 

@@ -46,6 +46,7 @@ import { useDependency } from '../../../dependencyContainer';
 import { CrmEntity } from '../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../services/crmService/CrmService';
 import { ICrmServiceCache } from '../../../services/crmService/CrmServiceCache';
+import { ICrmAccountService } from '../../../services/crmService/models/ICrmAccountService';
 import { ICrmEmail } from '../../../services/crmService/models/ICrmEmail';
 import { ICrmNote } from '../../../services/crmService/models/ICrmNote';
 import { ICrmTag } from '../../../services/crmService/models/ICrmTag';
@@ -63,6 +64,7 @@ import { ExpandablePanel } from '../../shared/ExpandablePanel';
 import { ExpandablePanelItemMode } from '../../shared/ExpandablePanelItem';
 import { Loading } from '../../shared/Loading';
 import { MultilineInput } from '../../shared/MultilineInput';
+import { LogCreditsDialog } from './dialogs/LogCreditsDialog';
 import { TicketIcon } from './TicketIcon';
 
 interface ITicketDetailsProps {
@@ -145,6 +147,8 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
     const [ticketTags, setTicketTags] = useState<ICrmTag[]>();
     const [addNoteMode, setAddNoteMode] = useState<"loading" | "ready">("ready");
     const [editNoteMode, setEditNoteMode] = useState<"loading" | "ready">("ready");
+    const [logCreditTaskOpen, setLogCreditTaskOpen] = useState(false);
+    const [bestCreditsService, setBestCreditsService] = useState<ICrmAccountService>();
 
     const crmService = useDependency(ICrmService);
     const crmServiceCache = useDependency(ICrmServiceCache);
@@ -333,21 +337,24 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
           .filter((accountService) => accountService.ken_servicetype === ServiceType.Credits)
           .filter((accountService) => accountService.statuscode === ServiceStatus.Purchased);
 
-        const bestCreditsService = sortArray(validCreditsServices, {
-          by: ["ken_expireson", "ken_remainingcredits"],
-          order: ["asc", "asc"],
-        })[0];
-
-        window.open(crmService.crmUrl(CrmEntity.AccountService).id(bestCreditsService.ken_serviceid).build(), "_blank");
+        setBestCreditsService(
+          sortArray(validCreditsServices, {
+            by: ["ken_expireson", "ken_remainingcredits"],
+            order: ["asc", "asc"],
+          })[0]
+        );
+        setLogCreditTaskOpen(true);
       }
-    }, [accountServices, crmService]);
+    }, [accountServices]);
 
     const addNote = useCallback(
       async (value: string) => {
         setAddNoteMode("loading");
 
         await crmService.notes().insert({ notetext: value, "objectid_incident@odata.bind": `/incidents(${ticket.incidentid})` });
+
         await wait(1000);
+
         crmServiceCache.refresh("Incident_Annotation");
 
         setAddNoteMode("ready");
@@ -363,6 +370,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
 
         // TEMPORARY
         await wait(1000);
+
         crmServiceCache.refresh("Incident_Annotation");
 
         setEditNoteMode("ready");
@@ -374,6 +382,15 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
 
     return (
       <>
+        {bestCreditsService && (
+          <LogCreditsDialog
+            open={logCreditTaskOpen}
+            setOpen={setLogCreditTaskOpen}
+            creditsService={bestCreditsService}
+            ticket={ticket}
+            onClose={() => setLogCreditTaskOpen(false)}
+          />
+        )}
         {ticket.customerid_account?.ken_customernote && (
           <Typography component="span">{ticket.customerid_account.ken_customernote}</Typography>
         )}
@@ -493,7 +510,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = memo(
                 label={
                   <>
                     <Typography variant="subtitle2">{account.ticketEmails}</Typography>
-                    <div className={styles.latestEmailWrapper}>
+                    <div className={styles.latestEmailWrapper} onClick={(event) => event.stopPropagation()}>
                       {emailId && emailId !== ticketEmails[0].activityid && (
                         <RouteLink
                           to={`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${ticketEmails[0].activityid}`}

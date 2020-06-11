@@ -1,5 +1,6 @@
 import { ICrmAccount } from './models/ICrmAccount';
 import { ICrmAccountService } from './models/ICrmAccountService';
+import { ICrmAccountServiceTask } from './models/ICrmAccountServiceTask';
 import { ICrmAttachment } from './models/ICrmAttachment';
 import { ICrmCannedResponse } from './models/ICrmCannedResponse';
 import { ICrmConnection } from './models/ICrmConnection';
@@ -20,6 +21,7 @@ export type CrmEndpoint = {
   emailbody: string;
   activitymimeattachments: ICrmAttachment[];
   ken_services: ICrmAccountService[];
+  ken_servicetasks: ICrmAccountServiceTask[];
   ken_customersuccessprojects: ICrmCsProject[];
   incidents: ICrmTicket[];
   connections: ICrmConnection[];

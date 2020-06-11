@@ -13,6 +13,8 @@
     "owner": "Owner",
     "status": "Status",
     "priority": "Priority",
+    "dateFrom": "Ticket modified from",
+    "dateTo": "Ticket modified to",
     "due": "Due",
     "created": "Created",
     "modified": "Modified",
@@ -21,7 +23,6 @@
     "unassignedFirst": "Unassigned first",
     "ticketNumber": "Ticket #",
     "ticketAccount": "Account name",
-    "ticketDate": "Ticket modified",
     "expand": "Expand",
     "collapse": "Collapse",
     "cases": "Cases"
@@ -101,8 +102,13 @@
       "remaining": "Remaining",
       "total": "Total",
       "expired": "Expired",
-      "logCreditTask": "Log credits task"
-    }
+      "logCreditTask": "Log credits task",
+      "creditTaskSubject": "Subject",
+      "creditTaskDate": "Date",
+      "creditTaskCredits": "Credits ({0} total | {1} remaining)",
+      "creditTaskTime": "Time (hours)"
+    },
+    "productFamily": "Product"
   },
   "errors": {
     "genericError": "A generic error has occurred.",
@@ -173,6 +179,10 @@
       "consultingplugin": "C",
       "salesplugin": "SL",
       "trainingplugin": "T"
+    },
+    "productFamily": {
+      "281600001": "Kontent",
+      "281600000": "Xperience"
     }
   },
   "files": {

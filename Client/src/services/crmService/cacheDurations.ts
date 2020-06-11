@@ -12,6 +12,7 @@ export const cacheDurations: { [key in CacheKeys]: number } = {
   emailbody: 5,
   activitymimeattachments: 0,
   ken_services: 90,
+  ken_servicetasks: 0,
   ken_customersuccessprojects: 90,
   incidents: 30,
   connections: 0,

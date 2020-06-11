@@ -1,4 +1,4 @@
 export enum ProductFamily {
-  KK = 281600000,
-  EMS = 281600001,
+  Kontent = 281600001,
+  Experience = 281600000,
 }

@@ -1,4 +1,4 @@
-import moment from 'moment';
+import moment, { Moment } from 'moment';
 import React, { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import sortArray from 'sort-array';
@@ -39,9 +39,9 @@ import { PaneList } from '../../shared/PaneList';
 import { LocalStorageKeys } from '../LocalStorageKeys';
 import { EmailLoader } from './emailView/EmailLoader';
 import { TicketItem } from './TicketItem';
+import { TicketsFilterDatesField } from './TicketsFilterDatesField';
 import { TicketsFilterField } from './TicketsFilterField';
 import { TicketsSearchField } from './TicketsSearchField';
-import { TicketsSearchRangeField } from './TicketsSearchRangeField';
 
 type OrderBy = "modified" | "due" | "created" | "owner" | "priority";
 
@@ -86,8 +86,8 @@ const useStyles = makeStyles((theme) =>
       flex: 1,
     },
     filterField: {
-      width: "100% ",
-      padding: theme.spacing(1, 2),
+      width: "100%",
+      padding: theme.spacing(0.5, 1),
     },
     orderByRow: {
       "& > label": {
@@ -112,6 +112,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   const [ticketPriority, setTicketPriority] = useLocalStorage<string | null>(LocalStorageKeys.TicketPriority, null);
   const [ticketStatus, setTicketStatus] = useLocalStorage<string | null>(LocalStorageKeys.TicketStatus, null);
   const [ticketOwner, setTicketOwner] = useLocalStorage<string | null>(LocalStorageKeys.TicketOwner, null);
+  const [ticketDates, setTicketDates] = useLocalStorage<[Moment | null, Moment | null]>(LocalStorageKeys.TicketDates, [null, null]);
   const [ticketOrderBy, setTicketOrderBy] = useLocalStorage<OrderBy>(LocalStorageKeys.TicketOrderBy, "modified");
   const [orderByReverse, setOrderByReverse] = useLocalStorage(LocalStorageKeys.OrderByReverse, false);
   const [unassignedFirst, setUnassignedFirst] = useLocalStorage(LocalStorageKeys.UnassignedFirst, true);
@@ -119,7 +120,6 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   const [searching, setSearching] = useState(false);
   const [searchTicketNumberFilter, setSearchTicketNumberFilter] = useState<string>();
   const [searchTicketOwnerFilter, setSearchTicketOwnerFilter] = useState<string>();
-  const [searchTicketDateFilter, setSearchTicketDateFilter] = useState<[string, string]>();
 
   const [ticketNumber, emailId] = useMatch(`${routes.base}${routes.tickets}/*ticketPath`)?.ticketPath?.split("/") || [undefined, undefined];
 
@@ -150,6 +150,10 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
       filter += ` and _ownerid_value eq ${ticketOwner}`;
     }
 
+    if (ticketDates[0] && ticketDates[1]) {
+      filter += ` and modifiedon gt ${moment(ticketDates[0]).toISOString()} and modifiedon lt ${moment(ticketDates[1]).toISOString()}`;
+    }
+
     if (ticketNumber) {
       filter = `(${filter}) or ticketnumber eq '${ticketNumber}'`;
     }
@@ -162,20 +166,16 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
       filter = `contains(customerid_account/name, '${searchTicketOwnerFilter}')`;
     }
 
-    if (searchTicketDateFilter) {
-      filter = `modifiedon gt '${searchTicketDateFilter[0]}' and modifiedon lt '${searchTicketDateFilter[1]}')`;
-    }
-
     return filter;
   }, [
     ticketQueue,
     ticketPriority,
     ticketStatus,
     ticketOwner,
+    ticketDates,
     ticketNumber,
     searchTicketNumberFilter,
     searchTicketOwnerFilter,
-    searchTicketDateFilter,
   ]);
 
   const tickets = useSubscriptionEffect(
@@ -353,7 +353,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
                   options={entityNames.ticketStatus}
                   label={ticketsTerms.status}
                   value={ticketStatus}
-                  setValue={(value) => setTicketStatus(value)}
+                  setValue={setTicketStatus}
                 />
               </Box>
               <Box className={styles.filterField}>
@@ -366,7 +366,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
                       .filter((ticket) => ticket.prioritycode === parseInt(value)).length
                   }
                   value={ticketPriority}
-                  setValue={(value) => setTicketPriority(value)}
+                  setValue={setTicketPriority}
                 />
               </Box>
               <Box className={styles.filterField}>
@@ -381,9 +381,16 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
                         .filter((ticket) => ticket._ownerid_value === value).length
                     }
                     value={ticketOwner}
-                    setValue={(value) => setTicketOwner(value)}
+                    setValue={setTicketOwner}
                   />
                 )}
+              </Box>
+              <Box className={styles.filterField}>
+                <TicketsFilterDatesField
+                  labels={[ticketsTerms.dateFrom, ticketsTerms.dateTo]}
+                  value={ticketDates}
+                  setValue={setTicketDates}
+                />
               </Box>
               <Box className={styles.filterField}>
                 <FormGroup>
@@ -467,9 +474,8 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
                     setSearching(true);
                     setSearchTicketOwnerFilter(undefined);
                     setSearchTicketNumberFilter(value);
-                    setSearchTicketDateFilter(undefined);
                   }}
-                  resetValue={searchTicketDateFilter !== undefined || searchTicketOwnerFilter !== undefined}
+                  resetValue={searchTicketOwnerFilter !== undefined}
                 />
               </Box>
               <Box className={styles.filterField}>
@@ -480,24 +486,8 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
                     setSearching(true);
                     setSearchTicketOwnerFilter(value);
                     setSearchTicketNumberFilter(undefined);
-                    setSearchTicketDateFilter(undefined);
                   }}
-                  resetValue={searchTicketDateFilter !== undefined || searchTicketNumberFilter !== undefined}
-                />
-              </Box>
-              <Box className={styles.filterField}>
-                <TicketsSearchRangeField
-                  label={ticketsTerms.ticketDate}
-                  searching={searchTicketDateFilter !== undefined && searching}
-                  range={[365 * -5, 0]}
-                  valueLabelFormat={(value) => moment().add(value, "days").format("L")}
-                  setFilter={(value) => {
-                    setSearching(true);
-                    setSearchTicketOwnerFilter(undefined);
-                    setSearchTicketNumberFilter(undefined);
-                    setSearchTicketDateFilter([moment().add(value[0], "days").toISOString(), moment().add(value[1], "days").toISOString()]);
-                  }}
-                  resetValue={searchTicketOwnerFilter !== undefined || searchTicketNumberFilter !== undefined}
+                  resetValue={searchTicketNumberFilter !== undefined}
                 />
               </Box>
               <Box className={styles.fill}></Box>

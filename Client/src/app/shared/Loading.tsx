@@ -33,6 +33,7 @@ const useStyles = makeStyles((theme) =>
       height: "100%",
       position: "absolute",
       width: "100%",
+      zIndex: 10000,
       "&+ *": {
         opacity: 0.5,
       },
