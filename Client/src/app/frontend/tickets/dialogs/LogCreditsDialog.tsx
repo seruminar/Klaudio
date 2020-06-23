@@ -88,6 +88,10 @@ export const LogCreditsDialog: FC<ILogCreditsDialogProps> = ({ open, setOpen, cr
         statecode: ServiceTaskStatus.Completed,
       });
 
+      await crmService.services().upsert(creditsService.ken_serviceid, {
+        ken_remainingcredits: creditsService.ken_remainingcredits - credits,
+      });
+
       await wait(1000);
 
       crmServiceCache.refresh("ken_services");

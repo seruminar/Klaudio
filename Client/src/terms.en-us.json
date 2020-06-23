@@ -34,6 +34,7 @@
     "isSla": "Premium support",
     "addNote": "Add note",
     "editNote": "Edit note",
+    "submit": "Submit",
     "cancel": "Cancel",
     "assignTo": "Assign to:",
     "latestEmail": "Go to latest"
@@ -67,6 +68,7 @@
     "submitBug": "Submit a bug",
     "openInCrm": "Open in CRM",
     "addAttachment": "Add attachment",
+    "newReply": "Re: {0} {1}",
     "signatureDivider": "<br />------------------- Original Message -------------------<br /><br /><br />"
   },
   "editor": {

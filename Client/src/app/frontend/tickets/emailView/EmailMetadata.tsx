@@ -57,16 +57,6 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
 
   const crmService = useDependency(ICrmService);
 
-  const latestContact = useSubscriptionEffect(() => {
-    if (!ticket.primarycontactid && ticket._ken_latestcontact_value) {
-      return crmService
-        .contacts()
-        .id(ticket._ken_latestcontact_value)
-        .select("contactid", "fullname", "ken_position", "ken_supportlevel", "ken_comment")
-        .getObservable();
-    }
-  }, [ticket.primarycontactid, ticket._ken_latestcontact_value]);
-
   const aeUser = useSubscriptionEffect(() => {
     if (ticket.customerid_account?._dyn_accountexecutiveid_value) {
       return crmService
@@ -89,7 +79,7 @@ export const EmailMetadata: FC<IEmailMetadataProps> = ({ ticket, email, toEmails
     }
   }, [ticket.customerid_account]);
 
-  const displayContact = ticket.primarycontactid ?? latestContact;
+  const displayContact = ticket.primarycontactid ?? ticket.ken_LatestContact;
 
   const displayContactTooltip = useMemo(() => {
     if (displayContact) {

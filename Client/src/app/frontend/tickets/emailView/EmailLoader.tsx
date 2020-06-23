@@ -51,10 +51,10 @@ export const EmailLoader: FC<IEmailLoaderProps> = ({ ticketNumber, emailId, user
         "_ownerid_value",
         "dyn_issla",
         "dyn_is2level",
+        "dyn_ticket_group",
         "prioritycode",
         "statuscode",
-        "ticketnumber",
-        "_ken_latestcontact_value"
+        "ticketnumber"
       )
       .filter(`ticketnumber eq '${ticketNumber}'`)
       .top(1)
@@ -67,6 +67,7 @@ export const EmailLoader: FC<IEmailLoaderProps> = ({ ticketNumber, emailId, user
         "_owninguser_value",
       ])
       .expand("primarycontactid", ["contactid", "fullname", "ken_position", "ken_supportlevel", "ken_comment"])
+      .expand("ken_LatestContact", ["contactid", "fullname", "ken_position", "ken_supportlevel", "ken_comment"])
       .getObservable()
   )?.[0];
 

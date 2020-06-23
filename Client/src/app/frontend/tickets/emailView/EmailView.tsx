@@ -25,6 +25,7 @@ import {
     AttachFile,
     BugReport,
     Cached,
+    Edit,
     Feedback,
     FlashOn,
     People,
@@ -33,6 +34,7 @@ import {
     Send,
     Update
 } from '@material-ui/icons';
+import { navigate } from '@reach/router';
 
 import { useDependency } from '../../../../dependencyContainer';
 import { CrmEntity } from '../../../../services/crmService/CrmEntity';
@@ -41,9 +43,12 @@ import { ICrmServiceCache } from '../../../../services/crmService/CrmServiceCach
 import { EmailStatus } from '../../../../services/crmService/models/EmailStatus';
 import { ICrmAttachment } from '../../../../services/crmService/models/ICrmAttachment';
 import { ICrmEmail } from '../../../../services/crmService/models/ICrmEmail';
+import { ICrmParty } from '../../../../services/crmService/models/ICrmParty';
 import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
 import { ICrmUser } from '../../../../services/crmService/models/ICrmUser';
 import { ParticipationType } from '../../../../services/crmService/models/ParticipationType';
+import { TicketGroup } from '../../../../services/crmService/models/TicketGroup';
+import { ticketGroupIds } from '../../../../services/crmService/models/ticketGroupIds';
 import { TicketPriority } from '../../../../services/crmService/models/TicketPriority';
 import { TicketStatus } from '../../../../services/crmService/models/TicketStatus';
 import { systemUser } from '../../../../services/systemUser';
@@ -56,6 +61,8 @@ import { deleteFrom } from '../../../../utilities/arrays';
 import { getSizeText } from '../../../../utilities/numbers';
 import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
 import { wait } from '../../../../utilities/promises';
+import { format } from '../../../../utilities/strings';
+import { routes } from '../../../routes';
 import { ExpandableList } from '../../../shared/ExpandableList';
 import { Loading } from '../../../shared/Loading';
 import { Menu } from '../../../shared/Menu';
@@ -302,7 +309,9 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
       setMode("loading");
 
       await crmService.tickets().upsert(ticket.incidentid, { prioritycode: priority });
+
       await wait(1000);
+
       crmServiceCache.refresh("incidents");
 
       setMode("view");
@@ -311,26 +320,94 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
   );
 
   const assignUser = useCallback(
-    async (userId: Guid) => {
+    async (user: ICrmUser | undefined) => {
       setAssignToOpen(false);
       setMode("loading");
 
-      await crmService.tickets().upsert(ticket.incidentid, { "ownerid@odata.bind": `/systemusers(${userId})` });
-      await wait(1000);
-      crmServiceCache.refresh("incidents");
+      if (user) {
+        let ticketGroup = TicketGroup.Support;
 
-      setMode("view");
+        if (user.address1_telephone3) {
+          switch (user.address1_telephone3) {
+            case "supportconsultingplugin":
+            case "consultingplugin":
+              ticketGroup = TicketGroup.Consulting;
+              break;
+            case "salesplugin":
+              ticketGroup = TicketGroup.SalesEngineering;
+              break;
+            case "trainingplugin":
+              ticketGroup = TicketGroup.Training;
+              break;
+          }
+        }
+
+        await crmService
+          .tickets()
+          .upsert(ticket.incidentid, { "ownerid@odata.bind": `/systemusers(${user.systemuserid})`, dyn_ticket_group: ticketGroup });
+
+        await wait(1000);
+
+        crmServiceCache.refresh("incidents");
+
+        setMode("view");
+      }
     },
     [crmService, ticket.incidentid, crmServiceCache]
   );
 
-  const editEmail = useCallback(async () => {
-    // TEMPORARY
-    setMode("newReply");
-  }, []);
+  const newEmail = useCallback(
+    (email: ICrmEmail) => async () => {
+      setMode("loading");
+
+      if (ticket.dyn_ticket_group && parties && email.subject && email.trackingtoken) {
+        const queueId = ticketGroupIds[ticket.dyn_ticket_group];
+
+        const newParties = parties;
+
+        const queueParty: Partial<ICrmParty> = {
+          "partyid_queue@odata.bind": `/queues(${queueId})`,
+          participationtypemask: ParticipationType.Sender,
+        };
+
+        newParties.push(queueParty as ICrmParty);
+
+        const response = await crmService.emails().insert({
+          subject: format(emailTerms.newReply, email.subject, email.trackingtoken),
+          description: email.description,
+          trackingtoken: email.trackingtoken,
+          email_activity_parties: newParties,
+          "regardingobjectid_incident@odata.bind": `/incidents(${ticket.incidentid})`,
+          "parentactivityid@odata.bind": `/emails(${email.activityid})`,
+        });
+
+        await wait(1000);
+
+        crmServiceCache.refresh("incidents");
+        crmServiceCache.refresh("Incident_Emails");
+
+        const newEmailId = response.headers.get("Odata-EntityId")?.match(/\((.*)\)/)?.[1];
+
+        if (newEmailId) {
+          await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${newEmailId}`);
+        }
+
+        setMode("newReply");
+      }
+    },
+    [ticket.dyn_ticket_group, ticket.incidentid, ticket.ticketnumber, parties, crmService, crmServiceCache]
+  );
+
+  const editEmail = useCallback(
+    (email: ICrmEmail) => async () => {
+      // TEMPORARY
+      setMode("edit");
+    },
+    []
+  );
 
   const sendEmail = useCallback(
-    (keepStatus: boolean) => async () => {
+    (email: ICrmEmail, keepStatus: boolean) => async () => {
       setMode("loading");
 
       // TEMPORARY
@@ -390,7 +467,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
             {users
               .filter((user) => user.systemuserid !== ticket._ownerid_value)
               .map((user) => (
-                <ListItem button key={user.systemuserid} onClick={async () => await assignUser(user.systemuserid)}>
+                <ListItem button key={user.systemuserid} onClick={async () => await assignUser(user)}>
                   <ListItemAvatar>
                     <Avatar>{user.address1_telephone3 ? entityNames.userType[user.address1_telephone3] : ""}</Avatar>
                   </ListItemAvatar>
@@ -426,31 +503,38 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
               <TicketIcon ticket={ticket} />
               <EmailMetadata ticket={ticket} email={email} toEmails={toEmails} ccEmails={ccEmails} bccEmails={bccEmails} />
               <div className={styles.spacer} />
-              {(mode === "view" || mode === "loading") && (
+              {(mode === "view" || mode === "loading") && email.statuscode !== EmailStatus.Draft && (
                 <Tooltip title={emailTerms.reply} aria-label={emailTerms.reply}>
-                  <IconButton onClick={editEmail}>
+                  <IconButton onClick={newEmail(email)}>
                     <Reply />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {(mode === "view" || mode === "loading") && email.statuscode === EmailStatus.Draft && (
+                <Tooltip title={emailTerms.reply} aria-label={emailTerms.reply}>
+                  <IconButton onClick={editEmail(email)}>
+                    <Edit />
                   </IconButton>
                 </Tooltip>
               )}
               {(mode === "edit" || mode === "editLoading") && (
                 <Tooltip title={emailTerms.send} aria-label={emailTerms.send}>
-                  <IconButton onClick={sendEmail(false)}>
+                  <IconButton onClick={sendEmail(email, false)}>
                     <Send color="primary" />
                   </IconButton>
                 </Tooltip>
               )}
               {(mode === "edit" || mode === "editLoading") && (
                 <Tooltip title={emailTerms.sendKeepStatus} aria-label={emailTerms.send}>
-                  <IconButton onClick={sendEmail(true)}>
+                  <IconButton onClick={sendEmail(email, true)}>
                     <SendSave />
                   </IconButton>
                 </Tooltip>
               )}
               {!currentUser && <Loading small />}
-              {currentUser && (
+              {currentUser && users && (
                 <Tooltip title={emailTerms.assignToMe} aria-label={emailTerms.assignToMe}>
-                  <IconButton onClick={async () => await assignUser(currentUser.UserId)}>
+                  <IconButton onClick={async () => await assignUser(users.find((user) => user.systemuserid === currentUser.UserId))}>
                     <PersonAdd />
                   </IconButton>
                 </Tooltip>

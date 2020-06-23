@@ -68,13 +68,19 @@ export class CrmQuery<T extends ICrmEntity> extends CrmQueryBase<T[]> implements
   insert(data: Partial<T>) {
     const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}`).middlewares([retry()]));
 
-    return request.post(data);
+    return request.post(data).res();
   }
 
   upsert(id: Guid, data: Partial<T>) {
     const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}(${id})`).middlewares([retry()]));
 
     return request.patch(data);
+  }
+
+  delete(id: Guid) {
+    const request = this.getRequest(wretch(`${context.crmEndpoint}/${this.type}(${id})`).middlewares([retry()]));
+
+    return request.delete();
   }
 
   protected getRequest(request: Wretcher): Wretcher {

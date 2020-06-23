@@ -7,4 +7,5 @@ export interface ICrmParty extends ICrmEntity {
   participationtypemask: ParticipationType;
   activitypartyid: Guid;
   partyid_contact?: ICrmContact;
+  "partyid_queue@odata.bind"?: string;
 }

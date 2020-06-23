@@ -157,17 +157,13 @@ export const EmailEditor: FC<IEmailEditorProps> = ({ value }) => {
         const editor = new Squire(editorRoot, {
           sanitizeToDOMFragment: (html, _, self) => {
             const frag = DOMPurify.sanitize(html, {
-              ALLOW_UNKNOWN_PROTOCOLS: true,
               WHOLE_DOCUMENT: false,
-              RETURN_DOM: true,
               RETURN_DOM_FRAGMENT: true,
             });
 
             return self.getDocument().importNode(frag, true);
           },
         });
-
-        editor.setHTML(value);
 
         editor.addEventListener("pathChange", () => setRerender((rerender) => !rerender));
         editor.addEventListener("input", () => setRerender((rerender) => !rerender));
@@ -179,17 +175,18 @@ export const EmailEditor: FC<IEmailEditorProps> = ({ value }) => {
 
   useEffect(() => {
     if (editor) {
+      editor.setHTML(value);
+
       switch (mode) {
-        case "view":
-        case "viewDraft":
-          editor.getRoot().contentEditable = "false";
+        case "edit":
+          editor.getRoot().contentEditable = "true";
           break;
         default:
-          editor.getRoot().contentEditable = "true";
+          editor.getRoot().contentEditable = "inherit";
           break;
       }
     }
-  }, [editor, mode]);
+  }, [editor, mode, value]);
 
   useEffect(() => {
     if (editor && signature && mode === "newReply") {

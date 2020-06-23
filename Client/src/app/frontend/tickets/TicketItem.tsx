@@ -10,8 +10,9 @@ import { ICrmService } from '../../../services/crmService/CrmService';
 import { ICrmServiceCache } from '../../../services/crmService/CrmServiceCache';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
 import { ICrmUser } from '../../../services/crmService/models/ICrmUser';
+import { TicketGroup } from '../../../services/crmService/models/TicketGroup';
 import { email as emailTerms } from '../../../terms.en-us.json';
-import { useSubscription } from '../../../utilities/observables';
+import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
 import { wait } from '../../../utilities/promises';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
@@ -68,6 +69,18 @@ export const TicketItem: FC<ITicketItemProps> = memo(
 
     const currentUser = useSubscription(crmService.currentUser().getObservable());
 
+    const currentSystemUser = useSubscriptionEffect(
+      () =>
+        currentUser &&
+        crmService
+          .users()
+          .select("fullname", "systemuserid", "address1_telephone3")
+          .filter(`systemuserid eq ${currentUser?.UserId}`)
+          .orderBy("fullname")
+          .getObservable(),
+      [currentUser]
+    )?.[0];
+
     const ticketIsSelected = useCallback((ticket: ICrmTicket) => ticketNumber === ticket.ticketnumber, [ticketNumber]);
 
     const scrollIntoView = useCallback(() => {
@@ -91,14 +104,37 @@ export const TicketItem: FC<ITicketItemProps> = memo(
     }, [scrollIntoView, ticket, ticketIsSelected]);
 
     const assignUser = useCallback(
-      async (userId: Guid) => {
+      async (user: ICrmUser) => {
         setMode("loading");
 
-        await crmService.tickets().upsert(ticket.incidentid, { "ownerid@odata.bind": `/systemusers(${userId})` });
-        await wait(1000);
-        crmServiceCache.refresh("incidents");
+        if (user) {
+          let ticketGroup = TicketGroup.Support;
 
-        setMode("ready");
+          if (user.address1_telephone3) {
+            switch (user.address1_telephone3) {
+              case "supportconsultingplugin":
+              case "consultingplugin":
+                ticketGroup = TicketGroup.Consulting;
+                break;
+              case "salesplugin":
+                ticketGroup = TicketGroup.SalesEngineering;
+                break;
+              case "trainingplugin":
+                ticketGroup = TicketGroup.Training;
+                break;
+            }
+          }
+
+          await crmService
+            .tickets()
+            .upsert(ticket.incidentid, { "ownerid@odata.bind": `/systemusers(${user.systemuserid})`, dyn_ticket_group: ticketGroup });
+
+          await wait(1000);
+
+          crmServiceCache.refresh("incidents");
+
+          setMode("ready");
+        }
       },
       [crmService, ticket.incidentid, crmServiceCache]
     );
@@ -119,16 +155,16 @@ export const TicketItem: FC<ITicketItemProps> = memo(
               <TicketIcon className={styles.icon} ticket={ticket} />
             </Grid>
             <Grid item sm>
-              {owner && currentUser && (
+              {owner && currentSystemUser && (
                 <>
                   <Menu
                     className={styles.menu}
                     tooltip={emailTerms.more}
                     options={[
-                      ticket.owninguser?.systemuserid !== currentUser?.UserId && {
+                      ticket.owninguser?.systemuserid !== currentSystemUser.systemuserid && {
                         icon: <PersonAdd />,
                         label: emailTerms.assignToMe,
-                        onClick: () => assignUser(currentUser.UserId),
+                        onClick: () => assignUser(currentSystemUser),
                       },
                       {
                         icon: <AccountBalance />,
