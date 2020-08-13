@@ -73,7 +73,7 @@ export const EmailLoader: FC<IEmailLoaderProps> = ({ ticketNumber, emailId, user
 
   const emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
 
-  const latestEmailId = useSubscriptionEffect(() => {
+  const latestEmail = useSubscriptionEffect(() => {
     if (ticket?.incidentid && !emailId) {
       return crmService
         .tickets()
@@ -88,10 +88,10 @@ export const EmailLoader: FC<IEmailLoaderProps> = ({ ticketNumber, emailId, user
   }, [ticket, emailId])?.[0];
 
   useAsyncEffect(async () => {
-    if (ticket?.ticketnumber && latestEmailId?.activityid && !emailId && ticket.incidentid === latestEmailId._regardingobjectid_value) {
-      await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${latestEmailId.activityid}`, { replace: true });
+    if (ticket?.ticketnumber && latestEmail?.activityid && !emailId && ticket.incidentid === latestEmail._regardingobjectid_value) {
+      await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${latestEmail.activityid}`, { replace: true });
     }
-  }, [ticket, latestEmailId, emailId]);
+  }, [ticket, latestEmail, emailId]);
 
   return (
     <Box className={styles.root}>

@@ -1,7 +1,6 @@
 import moment from 'moment';
 import React, { createContext, FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { BehaviorSubject } from 'rxjs';
 import sortArray from 'sort-array';
 
 import {
@@ -36,6 +35,7 @@ import {
 } from '@material-ui/icons';
 import { navigate } from '@reach/router';
 
+import { experience } from '../../../../appSettings.json';
 import { useDependency } from '../../../../dependencyContainer';
 import { CrmEntity } from '../../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../../services/crmService/CrmService';
@@ -48,7 +48,7 @@ import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
 import { ICrmUser } from '../../../../services/crmService/models/ICrmUser';
 import { ParticipationType } from '../../../../services/crmService/models/ParticipationType';
 import { TicketGroup } from '../../../../services/crmService/models/TicketGroup';
-import { ticketGroupIds } from '../../../../services/crmService/models/ticketGroupIds';
+import { ticketGroupContactIds } from '../../../../services/crmService/models/ticketGroupContactIds';
 import { TicketPriority } from '../../../../services/crmService/models/TicketPriority';
 import { TicketStatus } from '../../../../services/crmService/models/TicketStatus';
 import { systemUser } from '../../../../services/systemUser';
@@ -93,7 +93,7 @@ interface IEmailViewProps {
   users: ICrmUser[] | undefined;
 }
 
-export type EmailViewMode = "newReply" | "edit" | "view" | "viewDraft" | "loading" | "editLoading";
+export type EmailViewMode = "loading" | "view" | "viewDraft" | "newReply" | "edit" | "editLoading";
 
 const useStyles = makeStyles((theme) =>
   createStyles({
@@ -137,6 +137,10 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
   const crmService = useDependency(ICrmService);
   const crmServiceCache = useDependency(ICrmServiceCache);
 
+  useEffect(() => {
+    setMode("loading");
+  }, [emailId]);
+
   const currentUser = useSubscription(crmService.currentUser().getObservable());
 
   const emailFilter = `sender ne '${systemUser.internalemailaddress}' and isworkflowcreated ne true`;
@@ -146,22 +150,13 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
       .tickets()
       .id(ticket.incidentid)
       .children("Incident_Emails")
-      .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "trackingtoken", "torecipients")
+      .select("statuscode", "senton", "createdon", "modifiedon", "subject", "sender", "trackingtoken", "description")
       .filter(`${emailFilter} and activityid eq ${emailId}`)
       .top(1)
       .orderBy("createdon desc")
+      .shouldCache((email) => email[0].statuscode === EmailStatus.Draft)
       .getObservable()
   )?.[0];
-
-  const rawEmailContent = useSubscriptionEffect(() => {
-    if (email?.activityid) {
-      return crmService
-        .emailBody()
-        .id(email.activityid)
-        .shouldCache(() => email.statuscode === EmailStatus.Draft)
-        .getObservable();
-    }
-  }, [email]);
 
   const rawCaseAttachments = useSubscription(
     crmService
@@ -176,34 +171,33 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
   );
 
   const emailAttachmentsData = useSubscriptionEffect(() => {
-    if (rawEmailContent) {
-      const cidsFilter = [...rawEmailContent.matchAll(/src="cid:(.*?)"/g)]
-        .map((match) => `attachmentcontentid eq '{cid:${match[1]}}'`)
-        .join(" or ");
-
-      if (cidsFilter !== "") {
-        return crmService.attachments().select("attachmentcontentid", "body").filter(cidsFilter).getObservable();
-      }
-
-      return new BehaviorSubject<ICrmAttachment[] | undefined>([]);
+    if (email) {
+      return crmService.attachments().select("body").filter(`_objectid_value eq ${email.activityid}`).getObservable();
     }
-  }, [rawEmailContent, crmService]);
+  }, [email, crmService]);
 
   const emailContent = useMemo(() => {
-    if (rawEmailContent && emailAttachmentsData) {
-      let result = rawEmailContent;
+    if (email?.description && mode === "newReply") {
+      return email.description;
+    }
+
+    if (email?.description && emailAttachmentsData) {
+      let result = email.description;
 
       for (const attachment of emailAttachmentsData) {
-        result = result.replace(`src="${attachment.attachmentcontentid?.slice(1, -1)}"`, `src="data:image/png;base64,${attachment.body}"`);
+        result = result.replace(
+          new RegExp(`src=".*?" *data-attachment-id="${attachment.activitymimeattachmentid}"`, "g"),
+          `src="data:image/png;base64,${attachment.body}"`
+        );
       }
 
-      return result.replace(/<style[^</]*<\/style>/gi, "");
+      return result;
     }
-  }, [rawEmailContent, emailAttachmentsData]);
+  }, [email, emailAttachmentsData, mode]);
 
   useEffect(() => {
-    if (rawEmailContent && rawCaseAttachments && emailAttachmentsData) {
-      const matches = [...rawEmailContent.matchAll(/AttachmentId=([0-9a-f-]{36}).*?&amp;CRMWRPCToken/g)].map((match) => match[1]);
+    if (email?.description && rawCaseAttachments && emailAttachmentsData) {
+      const matches = [...email.description.matchAll(/data-attachment-id="(.*?)"/g)].map((match) => match[1]);
 
       let caseAttachments = rawCaseAttachments
         .flatMap((email) => email.email_activity_mime_attachment)
@@ -215,7 +209,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
 
       setCaseAttachments(caseAttachments);
     }
-  }, [rawEmailContent, rawCaseAttachments, emailAttachmentsData]);
+  }, [email, rawCaseAttachments, emailAttachmentsData]);
 
   useEffect(() => {
     if (ticket && email && caseAttachments && mode === "loading") {
@@ -230,17 +224,6 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
     }
   }, [ticket, email, caseAttachments, mode]);
 
-  useEffect(() => {
-    if (email?.torecipients) {
-      const toEmails = email.torecipients
-        .split(";")
-        .filter((recipient) => !!recipient)
-        .map((recipient) => ({ email: recipient }));
-
-      setToEmails(toEmails);
-    }
-  }, [email]);
-
   const parties = useSubscriptionEffect(() => {
     if (email?.activityid) {
       return crmService
@@ -249,23 +232,27 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
         .children("email_activity_parties")
         .select("addressused", "participationtypemask")
         .expand("partyid_contact", ["fullname"])
+        .expand("partyid_queue", ["queueid"])
+        .expand("partyid_incident", ["incidentid"])
+        .expand("partyid_systemuser", ["systemuserid"])
         .getObservable();
     }
   }, [email]);
 
   useEffect(() => {
     if (parties) {
-      const ccEmails = parties
-        .filter((party) => party.participationtypemask === ParticipationType.CcRecipient)
-        .map((party) => ({ name: party.partyid_contact?.fullname, email: party.addressused }));
+      const filterParties = (parties: ICrmParty[], participationType: ParticipationType) =>
+        parties
+          .filter((party) => party.participationtypemask === participationType)
+          .reduce<IEmailRecipient[]>((filtered, party) => {
+            party.partyid_contact && filtered.push({ name: party.partyid_contact.fullname, email: party.addressused });
 
-      setCcEmails(ccEmails);
+            return filtered;
+          }, []);
 
-      const bccEmails = parties
-        .filter((party) => party.participationtypemask === ParticipationType.BccRecipient)
-        .map((party) => ({ name: party.partyid_contact?.fullname, email: party.addressused }));
-
-      setBccEmails(bccEmails);
+      setToEmails(filterParties(parties, ParticipationType.ToRecipient));
+      setCcEmails(filterParties(parties, ParticipationType.CcRecipient));
+      setBccEmails(filterParties(parties, ParticipationType.BccRecipient));
     }
   }, [parties]);
 
@@ -296,7 +283,9 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
       setMode("loading");
 
       await crmService.tickets().upsert(ticket.incidentid, { statuscode: status });
-      await wait(1000);
+
+      await wait(experience.apiDelay);
+
       crmServiceCache.refresh("incidents");
 
       setMode("view");
@@ -310,7 +299,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
 
       await crmService.tickets().upsert(ticket.incidentid, { prioritycode: priority });
 
-      await wait(1000);
+      await wait(experience.apiDelay);
 
       crmServiceCache.refresh("incidents");
 
@@ -346,7 +335,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
           .tickets()
           .upsert(ticket.incidentid, { "ownerid@odata.bind": `/systemusers(${user.systemuserid})`, dyn_ticket_group: ticketGroup });
 
-        await wait(1000);
+        await wait(experience.apiDelay);
 
         crmServiceCache.refresh("incidents");
 
@@ -358,30 +347,69 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
 
   const newEmail = useCallback(
     (email: ICrmEmail) => async () => {
-      setMode("loading");
+      setMode("newReply");
 
-      if (ticket.dyn_ticket_group && parties && email.subject && email.trackingtoken) {
-        const queueId = ticketGroupIds[ticket.dyn_ticket_group];
+      if (ticket.dyn_ticket_group && parties && email.subject) {
+        const newParties: Partial<ICrmParty>[] = [];
 
-        const newParties = parties;
+        for (const party of parties) {
+          switch (party.participationtypemask) {
+            case ParticipationType.Sender:
+            case ParticipationType.ToRecipient:
+              party.partyid_queue &&
+                newParties.push({
+                  "partyid_queue@odata.bind": `/queues(${party.partyid_queue.queueid})`,
+                  participationtypemask: ParticipationType.Sender,
+                });
 
-        const queueParty: Partial<ICrmParty> = {
-          "partyid_queue@odata.bind": `/queues(${queueId})`,
-          participationtypemask: ParticipationType.Sender,
-        };
-
-        newParties.push(queueParty as ICrmParty);
+              party.partyid_contact &&
+                ticketGroupContactIds[ticket.dyn_ticket_group] !== party.partyid_contact.contactid &&
+                newParties.push({
+                  "partyid_contact@odata.bind": `/contacts(${party.partyid_contact.contactid})`,
+                  participationtypemask: ParticipationType.ToRecipient,
+                });
+              break;
+            case ParticipationType.CcRecipient:
+              party.partyid_contact &&
+                newParties.push({
+                  "partyid_contact@odata.bind": `/contacts(${party.partyid_contact.contactid})`,
+                  participationtypemask: ParticipationType.CcRecipient,
+                });
+              break;
+            case ParticipationType.BccRecipient:
+              party.partyid_contact &&
+                newParties.push({
+                  "partyid_contact@odata.bind": `/contacts(${party.partyid_contact.contactid})`,
+                  participationtypemask: ParticipationType.BccRecipient,
+                });
+              break;
+            case ParticipationType.Regarding:
+              party.partyid_incident &&
+                newParties.push({
+                  "partyid_incident@odata.bind": `/incidents(${party.partyid_incident.incidentid})`,
+                  participationtypemask: ParticipationType.Regarding,
+                });
+              break;
+            case ParticipationType.Owner:
+              party.partyid_systemuser &&
+                newParties.push({
+                  "partyid_systemuser@odata.bind": `/systemusers(${party.partyid_systemuser.systemuserid})`,
+                  participationtypemask: ParticipationType.Owner,
+                });
+              break;
+          }
+        }
 
         const response = await crmService.emails().insert({
-          subject: format(emailTerms.newReply, email.subject, email.trackingtoken),
+          subject: format(emailTerms.newReply, email.subject, email.trackingtoken ?? ""),
           description: email.description,
-          trackingtoken: email.trackingtoken,
-          email_activity_parties: newParties,
+          trackingtoken: email.trackingtoken ?? "",
+          email_activity_parties: newParties as ICrmParty[],
           "regardingobjectid_incident@odata.bind": `/incidents(${ticket.incidentid})`,
           "parentactivityid@odata.bind": `/emails(${email.activityid})`,
         });
 
-        await wait(1000);
+        await wait(experience.apiDelay);
 
         crmServiceCache.refresh("incidents");
         crmServiceCache.refresh("Incident_Emails");
@@ -392,7 +420,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
           await navigate(`${routes.base}${routes.tickets}/${ticket.ticketnumber}/${newEmailId}`);
         }
 
-        setMode("newReply");
+        setMode("edit");
       }
     },
     [ticket.dyn_ticket_group, ticket.incidentid, ticket.ticketnumber, parties, crmService, crmServiceCache]
@@ -411,7 +439,7 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
       setMode("loading");
 
       // TEMPORARY
-      await wait(1000);
+      await wait(experience.apiDelay);
 
       setMode("view");
     },
@@ -510,8 +538,8 @@ export const EmailView: FC<IEmailViewProps> = ({ ticket, emailId, users }) => {
                   </IconButton>
                 </Tooltip>
               )}
-              {(mode === "view" || mode === "loading") && email.statuscode === EmailStatus.Draft && (
-                <Tooltip title={emailTerms.reply} aria-label={emailTerms.reply}>
+              {(mode === "viewDraft" || mode === "loading") && email.statuscode === EmailStatus.Draft && (
+                <Tooltip title={emailTerms.edit} aria-label={emailTerms.edit}>
                   <IconButton onClick={editEmail(email)}>
                     <Edit />
                   </IconButton>

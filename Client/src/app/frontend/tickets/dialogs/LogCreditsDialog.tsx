@@ -92,7 +92,7 @@ export const LogCreditsDialog: FC<ILogCreditsDialogProps> = ({ open, setOpen, cr
         ken_remainingcredits: creditsService.ken_remainingcredits - credits,
       });
 
-      await wait(1000);
+      await wait(experience.apiDelay);
 
       crmServiceCache.refresh("ken_services");
 
@@ -124,7 +124,7 @@ export const LogCreditsDialog: FC<ILogCreditsDialogProps> = ({ open, setOpen, cr
       "ken_Case_ken_servicetask@odata.bind": `/incidents(${ticket.incidentid})`,
     });
 
-    await wait(1000);
+    await wait(experience.apiDelay);
 
     setCreditTaskLogged(true);
   }, [productFamily, subject, date, credits, time, ticket.owninguser, ticket.incidentid, creditsService.ken_serviceid, crmService]);

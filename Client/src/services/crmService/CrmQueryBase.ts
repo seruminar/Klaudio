@@ -79,7 +79,7 @@ export abstract class CrmQueryBase<T> implements ICrmQueryBase<T> {
   private async getResponse(request: Wretcher) {
     // TEMPORARY
     if (process.env.NODE_ENV === "development") {
-      console.log(request._url);
+      // console.log(request._url);
 
       await wait(Math.random() * 150 + 20);
 

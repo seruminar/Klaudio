@@ -58,9 +58,10 @@ import { ServiceType } from '../../../services/crmService/models/ServiceType';
 import { TagGroup } from '../../../services/crmService/models/TagGroup';
 import { TagStatus } from '../../../services/crmService/models/TagStatus';
 import { systemUser } from '../../../services/systemUser';
-import { account, entityNames, ticket as ticketTerms } from '../../../terms.en-us.json';
+import { account, email, entityNames, ticket as ticketTerms } from '../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
 import { wait } from '../../../utilities/promises';
+import { format } from '../../../utilities/strings';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
 import { ExpandablePanel } from '../../shared/ExpandablePanel';
@@ -284,7 +285,22 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket, emailId }) => {
     () =>
       createFilterOptions<ITagConnection>({
         limit: 10,
-        stringify: (option) => option.tag.dyn_name?.replace(" ", "") ?? "",
+        stringify: (option) => {
+          const tagName = option.tag.dyn_name;
+
+          if (tagName) {
+            return (
+              tagName +
+              tagName.replace(" ", "") +
+              tagName
+                .split(" ")
+                .map((part) => part[0])
+                .join("")
+            );
+          }
+
+          return "";
+        },
       }),
     []
   );
@@ -388,7 +404,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket, emailId }) => {
           }
         }
 
-        await wait(1000);
+        await wait(100);
 
         crmServiceCache.refresh("incident_connections1");
       }
@@ -418,7 +434,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket, emailId }) => {
 
       await crmService.notes().insert({ notetext: value, "objectid_incident@odata.bind": `/incidents(${ticket.incidentid})` });
 
-      await wait(1000);
+      await wait(experience.apiDelay);
 
       crmServiceCache.refresh("Incident_Annotation");
 
@@ -435,7 +451,7 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket, emailId }) => {
 
       await crmService.notes().upsert(note.annotationid, { notetext: value });
 
-      await wait(1000);
+      await wait(experience.apiDelay);
 
       crmServiceCache.refresh("Incident_Annotation");
 
@@ -598,7 +614,12 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket, emailId }) => {
               getRight={(ticketEmail) => (
                 <>
                   {ticketEmail.attachmentcount !== undefined && ticketEmail.attachmentcount > 0 && (
-                    <Attachment className={styles.attachment} />
+                    <Tooltip
+                      title={format(email.attachments, ticketEmail.attachmentcount.toString())}
+                      aria-label={format(email.attachments, ticketEmail.attachmentcount.toString())}
+                    >
+                      <Attachment className={styles.attachment} />
+                    </Tooltip>
                   )}
                   {ticketEmail.modifiedon && <DateFromNow date={ticketEmail.modifiedon} />}
                 </>

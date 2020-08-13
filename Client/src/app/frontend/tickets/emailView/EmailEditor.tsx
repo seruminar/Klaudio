@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import DOMPurify from 'dompurify';
-import React, { FC, useContext, useEffect, useMemo, useState } from 'react';
+import React, { FC, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import Squire from 'squire-rte/build/squire.js';
 
 import {
@@ -39,7 +39,7 @@ import {
 
 import { useDependency } from '../../../../dependencyContainer';
 import { ICrmService } from '../../../../services/crmService/CrmService';
-import { editor as editorTerms, email as emailTerms } from '../../../../terms.en-us.json';
+import { editor as editorTerms } from '../../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../../utilities/observables';
 import { Loading } from '../../../shared/Loading';
 import { MultilineInput } from '../../../shared/MultilineInput';
@@ -117,21 +117,11 @@ export const EmailEditor: FC<IEmailEditorProps> = ({ value }) => {
   const [, setRerender] = useState(false);
   const [cannedResponseId, setCannedResponseId] = useState<Guid>();
 
+  const editorRootRef = useRef<HTMLDivElement | null>(null);
+
   const { mode, setMode, ticket, email } = useContext(EmailContext);
 
   const crmService = useDependency(ICrmService);
-
-  const currentUser = useSubscriptionEffect(() => {
-    if (mode === "newReply") {
-      return crmService.currentUser().getObservable();
-    }
-  }, [mode]);
-
-  const signature = useSubscriptionEffect(() => {
-    if (currentUser?.UserId) {
-      return crmService.users().id(currentUser.UserId).select("dyn_signature").getObservable();
-    }
-  }, [currentUser])?.dyn_signature;
 
   const cannedResponses = useSubscription(
     crmService.cannedResponses().select("title", "templateid").filter("startswith(title,'Support -')").orderBy("title asc").getObservable()
@@ -150,54 +140,45 @@ export const EmailEditor: FC<IEmailEditorProps> = ({ value }) => {
   }, [ticket]);
 
   useEffect(() => {
-    if (!editor) {
-      const editorRoot = document.getElementById(editorRootId);
+    const editorRoot = document.getElementById(editorRootId);
 
-      if (editorRoot) {
-        const editor = new Squire(editorRoot, {
-          sanitizeToDOMFragment: (html, _, self) => {
-            const frag = DOMPurify.sanitize(html, {
-              WHOLE_DOCUMENT: false,
-              RETURN_DOM_FRAGMENT: true,
-            });
+    switch (mode) {
+      case "edit":
+        if (!editor && editorRoot) {
+          const editor = new Squire(editorRoot, {
+            sanitizeToDOMFragment: (html, _, self) => {
+              const frag = DOMPurify.sanitize(html, {
+                WHOLE_DOCUMENT: false,
+                RETURN_DOM_FRAGMENT: true,
+              });
 
-            return self.getDocument().importNode(frag, true);
-          },
-        });
+              return self.getDocument().importNode(frag, true);
+            },
+          });
 
-        editor.addEventListener("pathChange", () => setRerender((rerender) => !rerender));
-        editor.addEventListener("input", () => setRerender((rerender) => !rerender));
+          editor.addEventListener("pathChange", () => setRerender((rerender) => !rerender));
+          editor.addEventListener("input", () => setRerender((rerender) => !rerender));
+          editor.setHTML(value);
+          editor.focus();
 
-        setEditor(editor);
-      }
+          editorRoot.contentEditable = "true";
+
+          setEditor(editor);
+        }
+        break;
+      case "newReply":
+      case "editLoading":
+        break;
+      default:
+        if (editorRootRef.current) {
+          editorRootRef.current.innerHTML = DOMPurify.sanitize(value, {
+            WHOLE_DOCUMENT: false,
+            FORBID_TAGS: ["style"],
+          });
+        }
+        break;
     }
-  }, [editor, value, mode]);
-
-  useEffect(() => {
-    if (editor) {
-      editor.setHTML(value);
-
-      switch (mode) {
-        case "edit":
-          editor.getRoot().contentEditable = "true";
-          break;
-        default:
-          editor.getRoot().contentEditable = "inherit";
-          break;
-      }
-    }
-  }, [editor, mode, value]);
-
-  useEffect(() => {
-    if (editor && signature && mode === "newReply") {
-      setMode("edit");
-
-      editor.moveCursorToStart();
-      editor.insertHTML(`${signature.replace("\n", "")}${emailTerms.signatureDivider}`);
-      editor.moveCursorToStart();
-      editor.focus();
-    }
-  }, [editor, signature, mode, setMode]);
+  }, [editor, mode, setMode, value]);
 
   useEffect(() => {
     if (editor && cannedResponse && cannedResponse.templateid === cannedResponseId && mode === "editLoading" && ticket && email && amUser) {
@@ -470,7 +451,7 @@ export const EmailEditor: FC<IEmailEditorProps> = ({ value }) => {
           <Divider className={styles.divider} />
         </>
       )}
-      <div id={editorRootId} className={styles.editorArea} />
+      <div id={editorRootId} ref={editorRootRef} className={styles.editorArea} />
     </div>
   );
 };

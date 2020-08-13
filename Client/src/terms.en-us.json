@@ -53,6 +53,7 @@
     "territorySalesManager": "TSM:",
     "noAccountUser": "(none)",
     "reply": "Reply",
+    "edit": "Edit",
     "send": "Send",
     "sendKeepStatus": "Send and keep status",
     "assignToMe": "Assign to me",
@@ -68,8 +69,8 @@
     "submitBug": "Submit a bug",
     "openInCrm": "Open in CRM",
     "addAttachment": "Add attachment",
-    "newReply": "Re: {0} {1}",
-    "signatureDivider": "<br />------------------- Original Message -------------------<br /><br /><br />"
+    "attachments": "{0} attachments",
+    "newReply": "Re: {0} {1}"
   },
   "editor": {
     "undo": "Undo (Ctrl + Z)",

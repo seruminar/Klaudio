@@ -4,6 +4,7 @@ import { createStyles, Grid, ListItem, makeStyles, Typography } from '@material-
 import { AccountBalance, Alarm, Cake, Edit, PersonAdd } from '@material-ui/icons';
 import { navigate } from '@reach/router';
 
+import { experience } from '../../../appSettings.json';
 import { useDependency } from '../../../dependencyContainer';
 import { CrmEntity } from '../../../services/crmService/CrmEntity';
 import { ICrmService } from '../../../services/crmService/CrmService';
@@ -129,7 +130,7 @@ export const TicketItem: FC<ITicketItemProps> = memo(
             .tickets()
             .upsert(ticket.incidentid, { "ownerid@odata.bind": `/systemusers(${user.systemuserid})`, dyn_ticket_group: ticketGroup });
 
-          await wait(1000);
+          await wait(experience.apiDelay);
 
           crmServiceCache.refresh("incidents");
 
