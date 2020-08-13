@@ -1,7 +1,7 @@
-import React, { FC } from 'react';
+import React, { FC, useMemo } from 'react';
 
 import { createStyles, makeStyles, TextField } from '@material-ui/core';
-import { Autocomplete } from '@material-ui/lab';
+import { Autocomplete, createFilterOptions } from '@material-ui/lab';
 
 interface ITicketsFilterFieldProps {
   options: { [key: string]: string };
@@ -9,6 +9,7 @@ interface ITicketsFilterFieldProps {
   getCount?: (value: string) => number | undefined;
   value: string | null;
   setValue: (value: string | null) => void;
+  getFilterOptionString?: (option: string) => string;
 }
 
 const useStyles = makeStyles((theme) =>
@@ -19,17 +20,23 @@ const useStyles = makeStyles((theme) =>
     },
   })
 );
-
-export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, label, getCount, value, setValue }) => {
+export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, label, getCount, value, setValue, getFilterOptionString }) => {
   const styles = useStyles();
+
+  const filterOptions = useMemo(
+    () =>
+      createFilterOptions({
+        limit: 10,
+        stringify: getFilterOptionString,
+      }),
+    [getFilterOptionString]
+  );
 
   return (
     <Autocomplete
       classes={{ input: styles.input }}
       options={Object.keys(options)}
-      getOptionLabel={(option) => {
-        return options[option];
-      }}
+      getOptionLabel={(option) => options[option]}
       renderOption={
         getCount &&
         ((option) => {
@@ -45,6 +52,7 @@ export const TicketsFilterField: FC<ITicketsFilterFieldProps> = ({ options, labe
       }
       value={value}
       onChange={(_event, value) => setValue(value)}
+      filterOptions={filterOptions}
       renderInput={(params) => {
         const count = getCount && getCount(Object.keys(options).find((key) => options[key] === (params.inputProps as any).value)!);
 

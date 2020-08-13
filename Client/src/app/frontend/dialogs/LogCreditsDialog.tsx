@@ -16,20 +16,20 @@ import {
 } from '@material-ui/core';
 import { KeyboardDatePicker, MuiPickersUtilsProvider } from '@material-ui/pickers';
 
-import { experience } from '../../../../appSettings.json';
-import { useDependency } from '../../../../dependencyContainer';
-import { ICrmService } from '../../../../services/crmService/CrmService';
-import { ICrmServiceCache } from '../../../../services/crmService/CrmServiceCache';
-import { ICrmAccountService } from '../../../../services/crmService/models/ICrmAccountService';
-import { ICrmTicket } from '../../../../services/crmService/models/ICrmTicket';
-import { ProductFamily } from '../../../../services/crmService/models/ProductFamily';
-import { ServiceTaskStatus } from '../../../../services/crmService/models/ServiceTaskStatus';
-import { account, entityNames } from '../../../../terms.en-us.json';
-import { useSubscriptionEffect } from '../../../../utilities/observables';
-import { wait } from '../../../../utilities/promises';
-import { format } from '../../../../utilities/strings';
-import { Loading } from '../../../shared/Loading';
-import { TicketsFilterField } from '../TicketsFilterField';
+import { experience } from '../../../appSettings.json';
+import { useDependency } from '../../../dependencyContainer';
+import { ICrmService } from '../../../services/crmService/CrmService';
+import { ICrmServiceCache } from '../../../services/crmService/CrmServiceCache';
+import { ICrmAccountService } from '../../../services/crmService/models/ICrmAccountService';
+import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
+import { ProductFamily } from '../../../services/crmService/models/ProductFamily';
+import { ServiceTaskStatus } from '../../../services/crmService/models/ServiceTaskStatus';
+import { account, entityNames } from '../../../terms.en-us.json';
+import { useSubscriptionEffect } from '../../../utilities/observables';
+import { wait } from '../../../utilities/promises';
+import { format } from '../../../utilities/strings';
+import { Loading } from '../../shared/Loading';
+import { TicketsFilterField } from '../tickets/TicketsFilterField';
 
 interface ILogCreditsDialogProps {
   open: boolean;
@@ -155,6 +155,7 @@ export const LogCreditsDialog: FC<ILogCreditsDialogProps> = ({ open, setOpen, cr
             <KeyboardDatePicker
               disableToolbar
               disableFuture
+              autoOk
               variant="inline"
               format="LL"
               margin="dense"

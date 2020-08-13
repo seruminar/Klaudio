@@ -1,6 +1,26 @@
-import React, { FC, lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import clsx from 'clsx';
+import React, {
+    FC,
+    lazy,
+    memo,
+    Suspense,
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    useState
+} from 'react';
 
-import { createStyles, Grid, ListItem, makeStyles, Typography } from '@material-ui/core';
+import {
+    createStyles,
+    Grid,
+    ListItem,
+    makeStyles,
+    PaletteType,
+    Theme,
+    Typography
+} from '@material-ui/core';
+import { grey } from '@material-ui/core/colors';
 import { AccountBalance, Alarm, Cake, Edit, PersonAdd } from '@material-ui/icons';
 import { navigate } from '@reach/router';
 
@@ -15,6 +35,7 @@ import { TicketGroup } from '../../../services/crmService/models/TicketGroup';
 import { email as emailTerms } from '../../../terms.en-us.json';
 import { useSubscription, useSubscriptionEffect } from '../../../utilities/observables';
 import { wait } from '../../../utilities/promises';
+import { ThemeContext } from '../../App';
 import { routes } from '../../routes';
 import { DateFromNow } from '../../shared/DateFromNow';
 import { Loading } from '../../shared/Loading';
@@ -28,10 +49,14 @@ interface ITicketItemProps {
   ticketNumber: string | undefined;
   emailId: string | undefined;
   owner?: ICrmUser;
+  alternate: boolean;
 }
 
-const useStyles = makeStyles((theme) =>
+const useStyles = makeStyles<Theme, Partial<ITicketItemProps> & { theme: PaletteType }>((theme) =>
   createStyles({
+    root: {
+      padding: theme.spacing(0, 1),
+    },
     metadata: {
       margin: theme.spacing(0.5, 0.25, 0.5, 0),
     },
@@ -54,12 +79,17 @@ const useStyles = makeStyles((theme) =>
         width: "100%",
       },
     },
+    alternate: {
+      backgroundColor: (props) => (props.alternate ? (props.theme === "light" ? grey[200] : grey[900]) : "transparent"),
+    },
   })
 );
 
 export const TicketItem: FC<ITicketItemProps> = memo(
-  ({ ticket, ticketNumber, emailId, owner }) => {
-    const styles = useStyles();
+  ({ ticket, ticketNumber, emailId, owner, alternate }) => {
+    const themeContext = useContext(ThemeContext);
+
+    const styles = useStyles({ alternate, theme: themeContext.themeColor });
 
     const [mode, setMode] = useState<"loading" | "ready">("ready");
 
@@ -98,11 +128,13 @@ export const TicketItem: FC<ITicketItemProps> = memo(
       [ticketIsSelected, scrollIntoView]
     );
 
+    const selected = ticketIsSelected(ticket);
+
     useEffect(() => {
-      if (ticketIsSelected(ticket)) {
+      if (selected) {
         wait(200).then(() => scrollIntoView());
       }
-    }, [scrollIntoView, ticket, ticketIsSelected]);
+    }, [scrollIntoView, ticket, selected]);
 
     const assignUser = useCallback(
       async (user: ICrmUser) => {
@@ -143,10 +175,12 @@ export const TicketItem: FC<ITicketItemProps> = memo(
     return (
       <ListItem
         dense
+        disableGutters
         alignItems="flex-start"
         ref={listItemRef}
-        button={!ticketIsSelected(ticket) as any}
-        selected={ticketIsSelected(ticket)}
+        className={clsx(styles.root, !selected && styles.alternate)}
+        button={!selected as any}
+        selected={selected}
         onClick={onClick(ticket)}
       >
         {mode === "loading" && <Loading overlay />}
@@ -191,7 +225,7 @@ export const TicketItem: FC<ITicketItemProps> = memo(
             </Typography>
           </Grid>
           <Grid item>
-            <Suspense fallback={<Loading />}>{ticketIsSelected(ticket) && <TicketDetails ticket={ticket} emailId={emailId} />}</Suspense>
+            <Suspense fallback={<Loading />}>{selected && <TicketDetails ticket={ticket} emailId={emailId} />}</Suspense>
           </Grid>
         </Grid>
       </ListItem>

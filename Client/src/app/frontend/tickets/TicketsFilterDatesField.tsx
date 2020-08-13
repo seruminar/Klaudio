@@ -16,6 +16,7 @@ export const TicketsFilterDatesField: FC<ITicketsFilterDatesFieldProps> = ({ lab
       <KeyboardDatePicker
         disableToolbar
         disableFuture
+        autoOk
         variant="inline"
         format="LL"
         label={labels[0]}
@@ -28,6 +29,7 @@ export const TicketsFilterDatesField: FC<ITicketsFilterDatesFieldProps> = ({ lab
       <KeyboardDatePicker
         disableToolbar
         disableFuture
+        autoOk
         variant="inline"
         format="LL"
         margin="dense"

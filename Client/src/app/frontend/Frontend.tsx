@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { lazy, Suspense, useContext, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useRef, useState } from 'react';
 
 import {
     Box,
@@ -14,7 +14,7 @@ import {
     makeStyles,
     Tooltip
 } from '@material-ui/core';
-import { Brightness6, ChevronLeft, Mail, Menu } from '@material-ui/icons';
+import { ChevronLeft, Mail, Menu, Settings } from '@material-ui/icons';
 import { Link, Redirect, Router, useMatch } from '@reach/router';
 
 import { experience } from '../../appSettings.json';
@@ -22,9 +22,9 @@ import { errors, header } from '../../terms.en-us.json';
 import { deleteFrom } from '../../utilities/arrays';
 import { wait } from '../../utilities/promises';
 import { RoutedFC } from '../../utilities/routing';
-import { ThemeContext } from '../App';
 import { routes } from '../routes';
 import { Loading } from '../shared/Loading';
+import { SettingsDialog } from './dialogs/SettingsDialog';
 import {
     IMessageContext,
     MessageContext,
@@ -81,6 +81,7 @@ const useStyles = makeStyles((theme) =>
       display: "flex",
       alignItems: "center",
       justifyContent: "flex-end",
+      flexDirection: "column",
     },
     content: {
       display: "flex",
@@ -151,12 +152,9 @@ export const Frontend: RoutedFC = () => {
   const styles = useStyles();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const context = useMatch(`${routes.base}/:route/*`);
-
-  const themeContext = useContext(ThemeContext);
-
-  const getThemeModeLabel = useMemo(() => (themeContext.theme === "light" ? header.darkMode : header.lightMode), [themeContext]);
 
   return (
     <MessageContext.Provider value={headerContext.current}>
@@ -166,6 +164,7 @@ export const Frontend: RoutedFC = () => {
             <Snack {...snack} />
           ))}
         </div>
+        <SettingsDialog open={settingsOpen} setOpen={setSettingsOpen} onClose={() => setSettingsOpen(false)} />
         <Drawer
           variant="permanent"
           className={clsx(styles.drawer, drawerOpen ? styles.drawerOpen : styles.drawerClose)}
@@ -190,9 +189,9 @@ export const Frontend: RoutedFC = () => {
           <Divider />
           <div className={styles.spacer} />
           <div className={styles.toolbar}>
-            <Tooltip placement="right" title={getThemeModeLabel} aria-label={getThemeModeLabel}>
-              <IconButton onClick={themeContext.toggleTheme} aria-label={getThemeModeLabel}>
-                <Brightness6 />
+            <Tooltip placement="right" title={header.settings} aria-label={header.settings}>
+              <IconButton aria-label={header.settings} onClick={() => setSettingsOpen(true)}>
+                <Settings />
               </IconButton>
             </Tooltip>
           </div>

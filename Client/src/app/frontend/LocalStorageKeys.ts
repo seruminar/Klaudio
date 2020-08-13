@@ -1,5 +1,6 @@
 export enum LocalStorageKeys {
-  Theme = "Klaudio:theme",
+  ThemeColor = "Klaudio:theme",
+  ThemeSize = "Klaudio:themeSize",
   TicketQueue = "Klaudio:ticketQueue",
   TicketPriority = "Klaudio:ticketPriority",
   TicketStatus = "Klaudio:ticketStatus",

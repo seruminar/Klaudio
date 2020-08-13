@@ -32,7 +32,7 @@ const useStyles = makeStyles((theme) =>
       },
     },
     premium: {
-      background: indigo["A700"],
+      background: indigo.A700,
     },
     fireFighting: {
       background: `repeating-linear-gradient(135deg, ${amber[600]} 0 ${theme.spacing(0.25)}px, ${deepOrange[200]} ${theme.spacing(
@@ -52,10 +52,10 @@ const useStyles = makeStyles((theme) =>
       background: green[500],
     },
     newcomer: {
-      background: green["A400"],
+      background: green.A400,
     },
     kenticoCloud: {
-      background: blue["A400"],
+      background: blue.A400,
     },
     unknown: {
       background: red[200],

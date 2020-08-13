@@ -15,7 +15,7 @@ const useStyles = makeStyles((theme) =>
       display: "flex",
       height: "100%",
       position: "relative",
-      width: theme.spacing(50),
+      width: theme.spacing(48),
       flexDirection: "column",
       borderRight: `${theme.spacing(0.1)}px solid ${theme.palette.divider}`,
       transition: theme.transitions.create("width", {
@@ -42,7 +42,7 @@ const useStyles = makeStyles((theme) =>
     },
     paneList: {
       padding: 0,
-      width: theme.spacing(49),
+      width: theme.spacing(47),
       position: "absolute",
       height: "100%",
     },

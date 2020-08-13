@@ -68,7 +68,7 @@ import { ExpandablePanel } from '../../shared/ExpandablePanel';
 import { ExpandablePanelItemMode } from '../../shared/ExpandablePanelItem';
 import { Loading } from '../../shared/Loading';
 import { MultilineInput } from '../../shared/MultilineInput';
-import { LogCreditsDialog } from './dialogs/LogCreditsDialog';
+import { LogCreditsDialog } from '../dialogs/LogCreditsDialog';
 import { TicketIcon } from './TicketIcon';
 
 interface ITicketDetailsProps {
@@ -720,13 +720,13 @@ export const TicketDetails: FC<ITicketDetailsProps> = ({ ticket, emailId }) => {
               options={ticketTagConnections}
               filterSelectedOptions
               classes={{ listbox: styles.tagList, option: styles.tagOption, noOptions: styles.noTags }}
-              getOptionLabel={(option) => option.tag.dyn_name ?? ""}
-              getOptionSelected={(option, value) => option.tag.dyn_name === value.tag.dyn_name}
-              renderInput={(params) => <TextField {...params} variant="outlined" label={account.caseTags} />}
               noOptionsText=""
               value={ticketTagConnections.filter((tagConnection) => tagConnection.connection !== undefined)}
               onChange={async (_event, value) => await updateTicketTags(value)}
+              getOptionLabel={(option) => option.tag.dyn_name ?? ""}
+              getOptionSelected={(option, value) => option.tag.dyn_name === value.tag.dyn_name}
               filterOptions={tagFilterOptions}
+              renderInput={(params) => <TextField {...params} variant="outlined" label={account.caseTags} />}
             />
           )}
         </>

@@ -43,26 +43,39 @@ const useStyles = makeStyles((theme) =>
 );
 
 interface IThemeContext {
-  theme: PaletteType;
-  toggleTheme: () => void;
+  themeColor: PaletteType;
+  toggleThemeColor: () => void;
+  themeSize: number;
+  setThemeSize: (themeSize: number) => void;
 }
 
-export const ThemeContext = createContext<IThemeContext>({ theme: "light", toggleTheme: () => {} });
+const defaultThemeContext: IThemeContext = {
+  themeColor: "light",
+  toggleThemeColor: () => {},
+  themeSize: 14,
+  setThemeSize: () => {},
+};
+
+export const ThemeContext = createContext<IThemeContext>(defaultThemeContext);
 
 export const App = boundary(() => {
   const styles = useStyles();
 
   const [error, info] = useError();
 
-  const [theme, setTheme] = useLocalStorage<PaletteType>(LocalStorageKeys.Theme, "light");
+  const [themeColor, setThemeColor] = useLocalStorage<PaletteType>(LocalStorageKeys.ThemeColor, defaultThemeContext.themeColor);
+  const [themeSize, setThemeSize] = useLocalStorage<number>(LocalStorageKeys.ThemeSize, defaultThemeContext.themeSize);
 
   let hasError = error || info ? true : false;
 
   const appTheme = useMemo(
     () =>
       createMuiTheme({
+        typography: {
+          fontSize: themeSize,
+        },
         palette: {
-          type: theme,
+          type: themeColor,
           primary: {
             main: "#388e3c",
           },
@@ -70,14 +83,19 @@ export const App = boundary(() => {
             main: "#9ccc65",
           },
           text: {
-            primary: theme === "light" ? "rgba(0, 0, 0, 0.87)" : "rgba(255, 255, 255, 0.87)",
+            primary: themeColor === "light" ? "rgba(0, 0, 0, 0.87)" : "rgba(255, 255, 255, 0.87)",
           },
         },
       }),
-    [theme]
+    [themeColor, themeSize]
   );
 
-  const themeContext = { theme, toggleTheme: () => (theme === "light" ? setTheme("dark") : setTheme("light")) };
+  const themeContext: IThemeContext = {
+    themeColor,
+    toggleThemeColor: () => (themeColor === "light" ? setThemeColor("dark") : setThemeColor("light")),
+    themeSize,
+    setThemeSize: (themeSize) => setThemeSize(themeSize),
+  };
 
   (async () => {
     const anchor = window.location.hash.substr(1);

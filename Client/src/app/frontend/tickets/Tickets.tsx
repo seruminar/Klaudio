@@ -26,6 +26,7 @@ import { useLocalStorage } from '@rehooks/local-storage';
 import { useDependency } from '../../../dependencyContainer';
 import { ICrmService } from '../../../services/crmService/CrmService';
 import { ICrmTicket } from '../../../services/crmService/models/ICrmTicket';
+import { ICrmUser } from '../../../services/crmService/models/ICrmUser';
 import { TicketGroup } from '../../../services/crmService/models/TicketGroup';
 import { TicketPriority } from '../../../services/crmService/models/TicketPriority';
 import { TicketStatus } from '../../../services/crmService/models/TicketStatus';
@@ -59,7 +60,7 @@ const useStyles = makeStyles((theme) =>
   createStyles({
     search: {
       height: "100%",
-      maxWidth: theme.spacing(29),
+      maxWidth: theme.spacing(28),
       borderRight: `${theme.spacing(0.1)}px solid ${theme.palette.divider}`,
     },
     emailView: {
@@ -125,6 +126,8 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
 
   const crmService = useDependency(ICrmService);
 
+  const currentUser = useSubscription(crmService.currentUser().getObservable());
+
   const allTickets = useSubscription(
     crmService
       .tickets()
@@ -150,8 +153,12 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
       filter += ` and _ownerid_value eq ${ticketOwner}`;
     }
 
-    if (ticketDates[0] && ticketDates[1]) {
-      filter += ` and modifiedon gt ${moment(ticketDates[0]).toISOString()} and modifiedon lt ${moment(ticketDates[1]).toISOString()}`;
+    if (ticketDates[0]) {
+      filter += ` and modifiedon gt ${moment(ticketDates[0]).toISOString()}`;
+    }
+
+    if (ticketDates[1]) {
+      filter += ` and modifiedon lt ${moment(ticketDates[1]).toISOString()}`;
     }
 
     if (ticketNumber) {
@@ -234,12 +241,49 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
   }, [usersFilter]);
 
   const usersFilterOptions = useMemo(() => {
-    if (users) {
+    if (users && currentUser) {
       let options: { [key: string]: string } = {};
-      [systemUser, ...users].map((user) => (options[user.systemuserid] = user.fullname ?? user.systemuserid));
+
+      let sortedUsers = sortArray([systemUser, ...users], {
+        by: ["parentheses", "fullname"],
+        computed: {
+          parentheses: (user: ICrmUser) =>
+            user.systemuserid === systemUser.systemuserid || user.systemuserid === currentUser.UserId ? 1 : 2,
+        },
+      });
+
+      for (const user of sortedUsers) {
+        if (user.systemuserid === currentUser.UserId) {
+          options[user.systemuserid] = ticketsTerms.me;
+        } else if (user.fullname) {
+          options[user.systemuserid] = user.fullname;
+        } else {
+          options[user.systemuserid] = user.systemuserid;
+        }
+      }
+
       return options;
     }
-  }, [users]);
+  }, [users, currentUser]);
+
+  const getUserFilterOptionString = useCallback(
+    (userId: string) => {
+      if (users) {
+        const user = users.find((user) => user.systemuserid === userId);
+
+        if (user?.fullname) {
+          return user.fullname;
+        }
+      }
+
+      if (usersFilterOptions) {
+        return usersFilterOptions[userId];
+      }
+
+      return userId;
+    },
+    [users, usersFilterOptions]
+  );
 
   const orderedTickets = useMemo(() => {
     if (tickets) {
@@ -382,6 +426,7 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
                     }
                     value={ticketOwner}
                     setValue={setTicketOwner}
+                    getFilterOptionString={getUserFilterOptionString}
                   />
                 )}
               </Box>
@@ -496,13 +541,14 @@ export const Tickets: RoutedFC<ITicketsProps> = () => {
         </Grid>
         <PaneList tooltip={[ticketsTerms.expand, ticketsTerms.collapse]}>
           {!tickets && <Loading />}
-          {orderedTickets?.map((ticket) => (
+          {orderedTickets?.map((ticket, index) => (
             <TicketItem
               key={ticket.incidentid}
               ticket={ticket}
               ticketNumber={ticketNumber}
               emailId={emailId}
               owner={ticket.owninguser?.systemuserid === systemUser.systemuserid ? systemUser : ticket.owninguser}
+              alternate={Boolean(index % 2)}
             />
           ))}
         </PaneList>

@@ -4,17 +4,23 @@
     "description": "Klaudio is a tool to make it easy to use Dynamics CRM for Kentico Customer Success",
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
+    "settings": "Settings",
     "routes": {
       "tickets": "Cases"
     }
   },
+  "settings": {
+    "title": "Settings",
+    "size": "Font size"
+  },
   "tickets": {
     "queue": "Queue",
     "owner": "Owner",
+    "me": "(Me)",
     "status": "Status",
     "priority": "Priority",
-    "dateFrom": "Ticket modified from",
-    "dateTo": "Ticket modified to",
+    "dateFrom": "Modified after",
+    "dateTo": "Modified before",
     "due": "Due",
     "created": "Created",
     "modified": "Modified",
